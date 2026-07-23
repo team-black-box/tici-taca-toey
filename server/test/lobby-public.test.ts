@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import TiciTacaToeyGameEngine from "../src/TiciTacaToeyGameEngine";
 import { GameDb } from "../src/db";
+import { Database } from "bun:sqlite";
 import { generateHandle, HANDLE_WORDS } from "../../shared/handles";
 import { HANDLE_PATTERN } from "../src/db";
 import {
@@ -239,5 +240,80 @@ describe("default handles", () => {
     expect(db.getHandle("a")).not.toBe("");
     expect(db.getHandle("b")).not.toBe("");
     expect(db.getHandle("a")).not.toBe(db.getHandle("b"));
+  });
+});
+
+describe("database migration", () => {
+  test("an older database gains the new columns without losing data", () => {
+    // Exactly the schema shipped before the 2026-07 changes: is_robot as a
+    // boolean, and ratings with no draws column.
+    const path = `/tmp/ttt-migrate-${crypto.randomUUID()}.db`;
+    const legacy = new Database(path, { create: true });
+    legacy.exec(`
+      CREATE TABLE players (
+        player_id  TEXT PRIMARY KEY,
+        key_hash   TEXT NOT NULL DEFAULT '',
+        handle     TEXT NOT NULL DEFAULT '',
+        is_robot   INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        last_seen  INTEGER NOT NULL
+      );
+      CREATE TABLE games (
+        game_id      TEXT PRIMARY KEY,
+        ttn          TEXT NOT NULL,
+        status       TEXT NOT NULL,
+        winner_seat  INTEGER,
+        started_at   INTEGER NOT NULL,
+        completed_at INTEGER NOT NULL
+      );
+      CREATE TABLE game_players (
+        game_id   TEXT NOT NULL,
+        seat      INTEGER NOT NULL,
+        player_id TEXT NOT NULL,
+        PRIMARY KEY (game_id, seat)
+      );
+      CREATE TABLE ratings (
+        player_id TEXT NOT NULL,
+        pool      TEXT NOT NULL,
+        rating    REAL NOT NULL DEFAULT 1000,
+        games     INTEGER NOT NULL DEFAULT 0,
+        wins      INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (player_id, pool)
+      );
+    `);
+    legacy
+      .query(
+        `INSERT INTO players (player_id, key_hash, handle, is_robot, created_at, last_seen)
+         VALUES (?, '', ?, ?, ?, ?)`
+      )
+      .run("old-human", "veteran", 0, 1, 1);
+    legacy
+      .query(
+        `INSERT INTO players (player_id, key_hash, handle, is_robot, created_at, last_seen)
+         VALUES (?, '', ?, ?, ?, ?)`
+      )
+      .run("old-robot", "rando", 1, 1, 1);
+    legacy
+      .query(
+        `INSERT INTO ratings (player_id, pool, rating, games, wins)
+         VALUES (?, 'global', 1200, 5, 4)`
+      )
+      .run("old-human");
+    legacy.close();
+
+    // Opening it with the current code must migrate rather than explode.
+    const db = new GameDb(path);
+    const board = db.leaderboard("global");
+    expect(board.length).toBe(1);
+    expect(board[0].handle).toBe("veteran");
+    expect(board[0].rating).toBe(1200);
+    expect(board[0].games).toBe(5);
+    expect(board[0].wins).toBe(4);
+    expect(board[0].draws).toBe(0);
+    expect(board[0].losses).toBe(1);
+    // The old boolean is carried across into the new column.
+    expect(db.kindOf("old-human")).toBe(PlayerKind.HUMAN);
+    expect(db.kindOf("old-robot")).toBe(PlayerKind.ROBOT);
+    db.close();
   });
 });

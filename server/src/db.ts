@@ -107,6 +107,43 @@ export class GameDb {
         PRIMARY KEY (player_id, pool)
       );
     `);
+    this.#migrate();
+  }
+
+  // CREATE TABLE IF NOT EXISTS does nothing to a table that already
+  // exists, so a box carrying an older database needs its new columns
+  // added explicitly. Each step is idempotent and additive - the database
+  // on the box holds real games, and a deploy must never drop them.
+  #migrate() {
+    const columns = (table: string): string[] =>
+      (this.#db.query(`PRAGMA table_info(${table})`).all() as Array<{
+        name: string;
+      }>).map((row) => row.name);
+
+    const add = (table: string, column: string, definition: string) => {
+      if (!columns(table).includes(column)) {
+        this.#db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+      }
+    };
+
+    try {
+      // 2026-07: is_robot (0/1) became kind (human|robot|agent), so that a
+      // seat taken over MCP is distinguishable from an SDK robot.
+      add("players", "kind", `TEXT NOT NULL DEFAULT '${PlayerKind.HUMAN}'`);
+      if (columns("players").includes("is_robot")) {
+        this.#db.exec(
+          `UPDATE players SET kind = '${PlayerKind.ROBOT}'
+           WHERE is_robot = 1 AND kind = '${PlayerKind.HUMAN}'`
+        );
+      }
+      // 2026-07: draws are counted so the standings table can show a real
+      // win/draw/loss split.
+      add("ratings", "draws", "INTEGER NOT NULL DEFAULT 0");
+    } catch (error) {
+      // A failed migration must not stop the server booting: it runs
+      // without whatever the new column powers rather than not at all.
+      console.error("Database migration failed", error);
+    }
   }
 
   upsertPlayer(playerId: string, keyHash: string, kind: PlayerKind) {
