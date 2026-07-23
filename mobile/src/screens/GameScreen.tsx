@@ -1,19 +1,102 @@
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Share, Text, View, useWindowDimensions } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  Share,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, MONO, SYMBOLS, getStatusForViewer, sideOfSeat } from "../theme";
+import {
+  C,
+  MONO,
+  SYMBOLS,
+  getStatusForViewer,
+  sideOfSeat,
+  kindLabel,
+  kindMark,
+} from "../theme";
 import { sequenceCounts } from "../rules";
-import { Avatar, Badge, Btn, Clock, styles as ui } from "../ui";
+import { Avatar, Badge, Btn, Clock, KindMark, styles as ui } from "../ui";
 import { GlassPill } from "../glass";
-import { useAppSelector, makeMove, requestRobot, getShareUrl } from "../state";
+import {
+  useAppSelector,
+  makeMove,
+  requestRobot,
+  openSeats,
+  getShareUrl,
+} from "../state";
 import { Game, GameInteractionTypes, GameStatus } from "../model";
 import { decodeTtn, boardAtFrame } from "../ttn";
 import type { RootStackParamList } from "../navigation";
 
+// Which cell just changed, so exactly one lands with a strike. Diffing
+// the board catches opponents' moves too, without the server having to
+// say which was last. Mirrors web/src/features/game/board/Board.tsx.
+const useLastPlacement = (positions: string[][]) => {
+  const previous = useRef<string[][] | undefined>(undefined);
+  const [struck, setStruck] = useState<string | null>(null);
+  useEffect(() => {
+    const before = previous.current;
+    previous.current = positions;
+    if (!before || before.length !== positions.length) {
+      return;
+    }
+    let landed: string | null = null;
+    positions.forEach((row, x) =>
+      row.forEach((cell, y) => {
+        if (before[x]?.[y] !== cell && cell !== "-") {
+          landed = `${x}:${y}`;
+        }
+      })
+    );
+    if (!landed) {
+      return;
+    }
+    setStruck(landed);
+    const timer = setTimeout(() => setStruck(null), 600);
+    return () => clearTimeout(timer);
+  }, [positions]);
+  return struck;
+};
+
+// A mark landing flares and settles - two blades meeting.
+const StrikeCell = ({
+  active,
+  children,
+  style,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  style: object;
+}) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!active) {
+      return;
+    }
+    scale.setValue(0.55);
+    Animated.spring(scale, {
+      toValue: 1,
+      friction: 4,
+      tension: 120,
+      useNativeDriver: true,
+    }).start();
+  }, [active, scale]);
+  return (
+    <Animated.View style={[style, { transform: [{ scale }] }]}>
+      {children}
+    </Animated.View>
+  );
+};
+
 const Board = ({ game, you }: { game: Game; you: string }) => {
   const { width } = useWindowDimensions();
+  const struck = useLastPlacement(game.positions);
   const cell = Math.floor(
     (width - 28 - (game.boardSize - 1) * 4) / game.boardSize
   );
@@ -51,18 +134,28 @@ const Board = ({ game, you }: { game: Game; you: string }) => {
                   backgroundColor: winning ? C.accentSoft : C.panel,
                 }}
               >
-                <Text
-                  style={[
-                    MONO,
-                    {
-                      fontSize: cell * 0.45,
-                      fontWeight: "700",
-                      color: seat >= 0 ? C.syms[seat % 10] : C.fg,
-                    },
-                  ]}
+                <StrikeCell
+                  active={struck === `${x}:${y}`}
+                  style={{ alignItems: "center", justifyContent: "center" }}
                 >
-                  {seat >= 0 ? SYMBOLS[seat % 10] : ""}
-                </Text>
+                  <Text
+                    style={[
+                      MONO,
+                      {
+                        fontSize: cell * 0.45,
+                        fontWeight: "700",
+                        color: seat >= 0 ? C.syms[seat % 10] : C.fg,
+                        textShadowColor:
+                          struck === `${x}:${y}` && seat >= 0
+                            ? C.syms[seat % 10]
+                            : "transparent",
+                        textShadowRadius: struck === `${x}:${y}` ? 14 : 0,
+                      },
+                    ]}
+                  >
+                    {seat >= 0 ? SYMBOLS[seat % 10] : ""}
+                  </Text>
+                </StrikeCell>
               </Pressable>
             );
           })}
@@ -227,7 +320,14 @@ const GameScreen = () => {
             </View>
           )}
         {canAddRobot && (
-          <Btn title="+ ROBOT" ghost onPress={() => requestRobot(game.gameId)} />
+          <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+            <Btn title="+ ROBOT" ghost onPress={() => requestRobot(game.gameId)} />
+            <Btn
+              title={game.openSeats ? "✓ OPEN TO ANYONE" : "+ OPEN TO ANYONE"}
+              ghost={!game.openSeats}
+              onPress={() => openSeats(game.gameId, !game.openSeats)}
+            />
+          </View>
         )}
 
         <Board game={game} you={you} />
@@ -280,8 +380,12 @@ const GameScreen = () => {
                       {SYMBOLS[side % 10]}
                     </Text>
                     <Avatar name={players[playerId]?.name ?? ""} />
-                    <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>
+                    <Text
+                      style={[MONO, { color: C.dim, fontSize: 10 }]}
+                      accessibilityLabel={kindLabel(players[playerId]?.kind)}
+                    >
                       {players[playerId]?.name || playerId.slice(0, 6)}
+                      {kindMark(players[playerId]?.kind)}
                     </Text>
                     {game.timers?.[playerId] && (
                       <Clock

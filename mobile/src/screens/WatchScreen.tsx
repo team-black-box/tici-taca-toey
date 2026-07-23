@@ -3,7 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, MONO } from "../theme";
-import { Badge, styles as ui } from "../ui";
+import { Activity, Badge, styles as ui } from "../ui";
 import { useAppSelector, spectateGame, setActiveGame } from "../state";
 import { GameStatus } from "../model";
 import type { RootStackParamList } from "../navigation";
@@ -49,7 +49,10 @@ const WatchScreen = () => {
             }}
           >
             <View>
-              <Text style={ui.tileName}>{summary.name}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={ui.tileName}>{summary.name}</Text>
+                {live && <Activity />}
+              </View>
               <Badge
                 text={
                   live
@@ -61,8 +64,9 @@ const WatchScreen = () => {
             </View>
             <Text style={ui.tileMeta}>
               {summary.boardSize}x{summary.boardSize}
+              {summary.openSeats ? "  · open" : ""}
               {"\n"}
-              {summary.humanCount} 웃  {summary.robotCount} 🤖  {summary.spectatorCount} 👁
+              {summary.humanCount} 웃  {summary.robotCount} ⚙  {summary.agentCount} ✦  {summary.spectatorCount} 👁
             </Text>
           </Pressable>
         );

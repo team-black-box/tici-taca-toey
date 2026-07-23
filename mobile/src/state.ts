@@ -441,7 +441,8 @@ export const startGame = (
   timePerPlayer?: number,
   incrementPerPlayer?: number,
   winningSequenceCount?: number,
-  teamCount?: number
+  teamCount?: number,
+  openToStrangers?: boolean
 ) => {
   dispatch({
     type: MessageTypes.START_GAME,
@@ -451,13 +452,54 @@ export const startGame = (
     winningSequenceLength,
     winningSequenceCount,
     teamCount,
+    openSeats: openToStrangers,
     timePerPlayer,
     incrementPerPlayer,
   });
 };
 
-export const joinGame = (gameId: string) => {
-  dispatch({ type: MessageTypes.JOIN_GAME, gameId });
+export const joinGame = (gameId: string, fromLobby = false) => {
+  dispatch({
+    type: MessageTypes.JOIN_GAME,
+    gameId,
+    ...(fromLobby ? { fromLobby: true } : {}),
+  });
+};
+
+// Let strangers take a free seat straight from the lobby.
+export const openSeats = (gameId: string, open = true) => {
+  dispatch({ type: MessageTypes.OPEN_SEATS, gameId, open });
+};
+
+// The public read API. Handles only - the server never exposes player ids.
+export const httpBase = (): string =>
+  SERVER_URL.replace(/^ws/, "http").replace(/\/+$/, "");
+
+export const fetchLeaderboard = async (pool = "global") => {
+  const response = await fetch(
+    `${httpBase()}/api/leaderboard?pool=${encodeURIComponent(pool)}&limit=200`
+  );
+  return (await response.json()) as {
+    pool: string;
+    pools: string[];
+    rows: Array<{
+      handle: string;
+      kind: string;
+      rating: number;
+      games: number;
+      wins: number;
+      draws: number;
+      losses: number;
+      winRate: number;
+    }>;
+  };
+};
+
+export const fetchPlayerGames = async (handle: string) => {
+  const response = await fetch(
+    `${httpBase()}/api/handles/${encodeURIComponent(handle)}/games?limit=50`
+  );
+  return (await response.json()) as { games: ArchivedGameSummary[] };
 };
 
 export const spectateGame = (gameId: string) => {

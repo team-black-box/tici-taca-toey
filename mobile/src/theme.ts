@@ -1,6 +1,6 @@
 // The terminal identity, mirrored from web/src/styles/app.css. Dark only.
 import { Platform } from "react-native";
-import { ErrorCodes, Game, GameStatus, StaticPlayerStore } from "./model";
+import { ErrorCodes, Game, GameStatus, PlayerKind, StaticPlayerStore } from "./model";
 
 export const C = {
   bg: "#050905",
@@ -148,3 +148,21 @@ export const getStatusForViewer = (
 // web/src/common/symbol.ts getSideSymbol.
 export const sideOfSeat = (seat: number, teamCount: number): number =>
   teamCount > 0 ? seat % teamCount : seat;
+
+// What is sitting in a seat, as a compact glyph. The web uses SVG icons;
+// on mobile the terminal look is text, so machines get a mark that reads
+// at 10px. Humans get nothing - a badge on everyone is a badge on no one.
+export const KIND_MARK: Record<string, string> = {
+  [PlayerKind.ROBOT]: "\u2699",
+  [PlayerKind.AGENT]: "\u2726",
+};
+
+export const kindMark = (kind: PlayerKind | undefined): string =>
+  (kind && KIND_MARK[kind]) ?? "";
+
+export const kindLabel = (kind: PlayerKind | undefined): string =>
+  kind === PlayerKind.ROBOT
+    ? "robot"
+    : kind === PlayerKind.AGENT
+    ? "ai agent (mcp)"
+    : "human";

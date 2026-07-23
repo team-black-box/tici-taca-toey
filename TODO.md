@@ -8,12 +8,6 @@ exquisite taste in design.
 
 ## In progress
 
-- Leaderboard page, agent badges, and public games
-  ([task file](./tasks/browse-and-public-games.md)).
-  Last checkpoint: 2026-07-23 16:49 IST - server and protocol done
-  (PlayerKind, full leaderboard stats, handle-keyed browse endpoint);
-  web layer next.
-
 - Production cutover: one Hetzner box (CX23, Nuremberg), one origin,
   releases installed by the box itself (Caddy + systemd, key-only SSH)
   ([task file](./tasks/production-cutover.md)).
@@ -33,6 +27,19 @@ exquisite taste in design.
   chrome, and a physical-device game against the production box once live.
 
 ## Completed
+
+- Standings, public games, and polish (2026-07-23): a sortable
+  **leaderboard page** where every row opens that player's games and any
+  game replays; **public games** - a game is private until its host opens
+  it, then strangers can take a seat from the lobby; **default handles**
+  in the house style so nobody is "anonymous" and every row is clickable;
+  **agent badges** distinguishing MCP-connected AI from SDK robots; and
+  **move animations** plus live-game activity in the lobby. Web and mobile
+  ([task file](./tasks/browse-and-public-games.md)). Also fixed: a board
+  that could overflow its column and slide under the rail, a client route
+  shadowed by an API path of the same name (read API now under ),
+  and a production 500 from a database predating the new schema - it now
+  migrates itself.
 
 - Game variants, ratings, and history (2026-07-23): four features shipped
   together across server, web, and mobile

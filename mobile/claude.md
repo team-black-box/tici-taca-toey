@@ -27,5 +27,13 @@ deep links, and store prep.
 - The game surface is always the terminal look; only app-level chrome may
   be platform-fancy. Palette mirrors `web/src/styles/app.css` variables
   via `src/theme.ts`.
+- Browse screens mirror the web: `LeaderboardScreen` (sortable standings,
+  horizontally scrollable table) and `PlayerScreen` (anyone's finished
+  games, by public handle) feed `ReplayScreen`. They read the server's
+  `/api/*` endpoints via helpers in `state.ts` rather than the socket,
+  since none of it is live data.
+- Machines are badged with a text mark rather than an icon (the terminal
+  look is text): gear for an SDK robot, spark for an MCP agent - see
+  `kindMark` in `theme.ts`.
 - Verify: `bun run typecheck`, `bun run bundle:android`, `bun run
   bundle:ios` (headless); device builds are manual via Xcode/Android SDK.

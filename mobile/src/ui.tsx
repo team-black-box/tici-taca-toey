@@ -1,7 +1,15 @@
 // Small shared terminal-styled building blocks.
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useEffect, useRef, useState } from "react";
-import { C, MONO, formatClock, generateAvatar, FEEDBACK_COLOR } from "./theme";
+import { C, MONO, formatClock, generateAvatar, FEEDBACK_COLOR, kindMark } from "./theme";
+import { PlayerKind } from "./model";
 import { useAppSelector } from "./state";
 
 const FEEDBACK_PREFIX = { ok: "✓", info: "~", warn: "!", err: "✗" } as const;
@@ -55,6 +63,51 @@ export const Avatar = ({ name, size = 10 }: { name: string; size?: number }) => 
     >
       {face.rows.join("\n")}
     </Text>
+  );
+};
+
+// A machine's mark next to its name: gear for an SDK robot, spark for an
+// agent connected over MCP.
+export const KindMark = ({
+  kind,
+  size = 10,
+  color = C.dim,
+}: {
+  kind: PlayerKind | undefined;
+  size?: number;
+  color?: string;
+}) => {
+  const mark = kindMark(kind);
+  return mark ? (
+    <Text style={[MONO, { color, fontSize: size }]}>{" " + mark}</Text>
+  ) : null;
+};
+
+// Three dots marching, so a live game reads as busy in a list.
+export const Activity = () => {
+  const dots = [useRef(new Animated.Value(0.2)).current, useRef(new Animated.Value(0.2)).current, useRef(new Animated.Value(0.2)).current];
+  useEffect(() => {
+    const loops = dots.map((value, index) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(index * 150),
+          Animated.timing(value, { toValue: 1, duration: 450, useNativeDriver: true }),
+          Animated.timing(value, { toValue: 0.2, duration: 450, useNativeDriver: true }),
+        ])
+      )
+    );
+    loops.forEach((loop) => loop.start());
+    return () => loops.forEach((loop) => loop.stop());
+  }, []);
+  return (
+    <View style={{ flexDirection: "row", gap: 3, alignItems: "center" }}>
+      {dots.map((value, index) => (
+        <Animated.View
+          key={index}
+          style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: C.accent, opacity: value }}
+        />
+      ))}
+    </View>
   );
 };
 

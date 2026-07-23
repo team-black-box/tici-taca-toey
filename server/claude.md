@@ -75,6 +75,34 @@ Spectators receive every broadcast re-typed as `SPECTATE_GAME`. Validation
 failures are sent only to the offending player as
 `{ type: "ERROR", error: <code>, message }`.
 
+## Identity, Handles, and Player Kinds
+
+Every player is one of three `PlayerKind`s: `human`, `robot` (registered
+via `REGISTER_ROBOT`, plays through the SDK), or `agent` (connected over
+MCP). The kind is **server-assigned only** - `server.ts` strips any
+client-supplied `kind` from incoming messages, so a browser cannot badge
+itself as an agent. Clients show a distinct icon for each machine kind.
+
+Humans are given a handle the moment they arrive (`shared/handles.ts`, in
+the house style: `trinity-x7k`), so nobody is ever "anonymous" and every
+leaderboard row is a real, clickable identity. Claiming a handle replaces
+the assigned one. Note the ordering in `attachPlayer`: the player row is
+persisted *before* asking for a handle, because `ensureHandle` updates
+that row - the other order silently assigns nothing on a first connection.
+
+The database migrates itself on open (`GameDb#migrate`), additively:
+`CREATE TABLE IF NOT EXISTS` does nothing to an existing table, so a box
+carrying an older database needs its new columns added explicitly. A
+failed migration logs and continues - the game outlives any one feature.
+
+## Public Games
+
+A game is private until its host opens it, exactly like a robot only
+joining when asked. `OPEN_SEATS` flips `game.openSeats`; a `JOIN_GAME`
+carrying `fromLobby: true` is refused with `GAME_IS_NOT_OPEN` unless the
+game is open. Joining by link is unaffected - holding the link is itself
+the invitation.
+
 ## Identity, Reconnect, and Resume
 
 Registrations may carry a secret `playerKey` (8-64 chars). The server maps
@@ -239,7 +267,13 @@ for client routes; `src/static.ts`, guarded so serving can never break the
 game endpoint). The web client then connects via its same-origin
 `wss://<host>/ws` fallback - no build-time server URL. `HOST=127.0.0.1`
 binds behind the reverse proxy (Caddy terminates TLS); `PORT` picks the
-port; `TLS_CERT`/`TLS_KEY` exist for proxyless setups. `GET /health`
+port; `TLS_CERT`/`TLS_KEY` exist for proxyless setups.
+
+Public read endpoints live under **`/api/*`** (`/api/leaderboard`,
+`/api/handles/<handle>/games`). The namespace is load-bearing: the client
+route `/leaderboard` was once shadowed by an API path of the same name, so
+the page served raw JSON to the browser. Everything there is keyed by the
+public **handle**, never the internal playerId. `GET /health`
 returns the running release plus player/game/robot counts for monitoring -
 the version comes from the `VERSION` file at the artifact root (or
 `TTT_VERSION`), and reads `dev` in a checkout. Full box runbook,

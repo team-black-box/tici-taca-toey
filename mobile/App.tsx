@@ -13,6 +13,8 @@ import LobbyScreen from "./src/screens/LobbyScreen";
 import WatchScreen from "./src/screens/WatchScreen";
 import GameScreen from "./src/screens/GameScreen";
 import ReplayScreen from "./src/screens/ReplayScreen";
+import LeaderboardScreen from "./src/screens/LeaderboardScreen";
+import PlayerScreen from "./src/screens/PlayerScreen";
 import type { RootStackParamList, TabParamList } from "./src/navigation";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -59,6 +61,8 @@ export default function App() {
           <Stack.Screen name="Tabs" component={Tabs} />
           <Stack.Screen name="Game" component={GameScreen} />
           <Stack.Screen name="Replay" component={ReplayScreen} />
+          <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+          <Stack.Screen name="Player" component={PlayerScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>

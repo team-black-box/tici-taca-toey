@@ -14,6 +14,7 @@ import {
   startGame,
   startRobotGame,
   joinGame,
+  spectateGame,
   setActiveGame,
   exportSyncUrl,
   importIdentity,
@@ -33,6 +34,17 @@ const LobbyScreen = () => {
   const players = useAppSelector((state) => state.players);
   const connected = useAppSelector((state) => state.currentPlayer.connected);
   const history = useAppSelector((state) => state.history);
+  const lobby = useAppSelector((state) => state.lobby);
+
+  // Games whose host opened a seat to strangers, and that still have one.
+  const openGames = lobby.filter(
+    (summary) =>
+      summary.openSeats &&
+      !playing.includes(summary.gameId) &&
+      summary.status === GameStatus.WAITING_FOR_PLAYERS &&
+      summary.playerCount >
+        summary.humanCount + summary.robotCount + summary.agentCount
+  );
 
   const [gameName, setGameName] = useState("My Amazing Game");
   const [boardSize, setBoardSize] = useState("3");
@@ -40,6 +52,7 @@ const LobbyScreen = () => {
   const [winSeq, setWinSeq] = useState("3");
   const [winCount, setWinCount] = useState("1");
   const [teams, setTeams] = useState(0);
+  const [openToStrangers, setOpenToStrangers] = useState(false);
   const [timed, setTimed] = useState(false);
   const [minutes, setMinutes] = useState("3");
 
@@ -205,6 +218,44 @@ const LobbyScreen = () => {
         </View>
       )}
 
+      {openGames.length > 0 && (
+        <View style={{ marginBottom: 4 }}>
+          <Text style={ui.panelTitle}>{"> open to anyone"}</Text>
+          {openGames.map((summary) => {
+            const seated =
+              summary.humanCount + summary.robotCount + summary.agentCount;
+            return (
+              <Pressable
+                key={summary.gameId}
+                style={ui.tile}
+                onPress={() => joinGame(summary.gameId, true)}
+              >
+                <View>
+                  <Text style={ui.tileName}>{summary.name}</Text>
+                  <Badge
+                    text={`TAKE A SEAT (${summary.playerCount - seated})`}
+                    color={C.accent}
+                  />
+                </View>
+                <Text style={ui.tileMeta}>
+                  {summary.boardSize}x{summary.boardSize}
+                  {"\n"}
+                  {seated}/{summary.playerCount} seated
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 14 }}>
+        <Btn
+          title="LEADERBOARD"
+          ghost
+          onPress={() => navigation.navigate("Leaderboard")}
+        />
+      </View>
+
       <View style={ui.panel}>
         <Text style={ui.panelTitle}>{"> start new game"}</Text>
         <Field label="GAME NAME" value={gameName} onChange={setGameName} />
@@ -236,6 +287,15 @@ const LobbyScreen = () => {
         )}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8 }}>
           <Switch
+            value={openToStrangers}
+            onValueChange={setOpenToStrangers}
+            trackColor={{ true: C.accent, false: C.border }}
+            thumbColor={C.fg}
+          />
+          <Text style={ui.label}>LET STRANGERS JOIN</Text>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8 }}>
+          <Switch
             value={timed}
             onValueChange={setTimed}
             trackColor={{ true: C.accent, false: C.border }}
@@ -257,7 +317,8 @@ const LobbyScreen = () => {
               timed ? Number(minutes) * 60_000 : undefined,
               timed ? 1000 : undefined,
               Number(winCount) > 1 ? Number(winCount) : undefined,
-              chosenTeams > 0 ? chosenTeams : undefined
+              chosenTeams > 0 ? chosenTeams : undefined,
+              openToStrangers
             )
           }
         />

@@ -1,9 +1,10 @@
 # Leaderboard page, agent badges, and public games
 
-**Status:** In progress
+**Status:** Completed
 **Owner:** claude
 **Estimated effort:** Large (protocol + server + web + mobile)
 **Created:** 2026-07-23 16:49 IST
+**Completed:** 2026-07-23 17:26 IST
 **Tracked from:** [`TODO.md`](../TODO.md)
 
 ## Goal
@@ -45,7 +46,8 @@ identity and the lobby:
 - [x] Public games: OPEN_SEATS, joinable from the lobby when open.
 - [x] Default handles in the house style, assigned on arrival.
 - [x] Move-impact animation and lobby activity indicators.
-- [ ] Mobile: agent badge, and the public-games list.
+- [x] Mobile: agent badges, public games, sortable standings,
+      per-player games, replay screen, move strike, activity dots.
 
 ## Open Questions
 
@@ -67,6 +69,17 @@ router is a single `/:type?/:gameId?`, so `/leaderboard` and
 `/player/<handle>` are new `type` values handled in App.tsx.
 
 ## Checkpoints
+
+- 2026-07-23 17:26 IST - Mobile shipped to parity: LeaderboardScreen (sortable, scrollable
+  table), PlayerScreen, "let strangers join" switch, "+ open to anyone",
+  robot/agent marks, move strike animation and activity dots. Typecheck
+  plus both headless bundles green; the two /api endpoints the screens call
+  verified against a live server. Full matrix green (server 122, web 9 +
+  build, sdk, both MCP transports).
+  Also shipped v1.3.1: production 500'd on /api/leaderboard because the
+  box's database predated the new columns - CREATE TABLE IF NOT EXISTS
+  does nothing to an existing table. The db now migrates itself, tested
+  against a database built with the exact old schema.
 
 - 2026-07-23 17:11 IST - Web done and verified in the browser: sortable standings table
   (clicking a header flips the caret and reorders), click-through to
