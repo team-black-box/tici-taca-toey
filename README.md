@@ -1,11 +1,19 @@
-<img src="./web/public/og.png" alt="Tici Taca Toey" width="640">
+<p align="center">
+  <img src="./web/public/og.png" alt="Tici Taca Toey" width="640">
+</p>
 
-A multiplayer game of tic tac toe over websockets, with configurable board
-sizes (2-12), player counts (2-10), winning sequence lengths, spectators, and
-QR-code game invites. Built in 2020, revived in 2026, intended to run for
-decades.
+<p align="center">
+  A multiplayer game of tic tac toe over websockets, with configurable board
+  sizes (2-12), player counts (2-10), winning sequence lengths, spectators,
+  and QR-code game invites.<br>
+  Built in 2020, revived in 2026, intended to run for decades.
+</p>
 
-Made with ♥ in Bengaluru, India.
+<p align="center">
+  <a href="https://ticitacatoey.com">play</a> ·
+  <a href="https://stats.uptimerobot.com/Uta5Sjd5ef">status</a> ·
+  Made with ♥ in Bengaluru, India
+</p>
 
 ## Layout
 
@@ -50,10 +58,6 @@ bun robots/greedy.ts
 
 Open http://localhost:3000, enter a handle, start a game, and press
 "+ robot" - or share the invite link (or QR code) with a friend.
-
-## Status
-
-[Live status](https://stats.uptimerobot.com/Uta5Sjd5ef) · play at [ticitacatoey.com](https://ticitacatoey.com)
 
 ## Testing and Verification
 
