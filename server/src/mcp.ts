@@ -194,6 +194,10 @@ const callTool = async (
         boardSize: Number(args.boardSize ?? 3),
         playerCount: Number(args.playerCount ?? 2),
         winningSequenceLength: Number(args.winningSequenceLength ?? 3),
+        ...(args.winningSequenceCount
+          ? { winningSequenceCount: Number(args.winningSequenceCount) }
+          : {}),
+        ...(args.teamCount ? { teamCount: Number(args.teamCount) } : {}),
         ...(args.timePerPlayer
           ? {
               timePerPlayer: Number(args.timePerPlayer),

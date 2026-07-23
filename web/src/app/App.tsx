@@ -5,6 +5,7 @@ import Game from "../features/game/Game";
 import Join from "../features/join/Join";
 import Listing from "../features/listing/Listing";
 import Leaderboard from "../features/listing/Leaderboard";
+import History from "../features/listing/History";
 import Replay from "../features/replay/Replay";
 import Help from "../features/help/Help";
 import StatusLine from "../features/feedback/StatusLine";
@@ -133,6 +134,7 @@ export default function App() {
         </section>
         <aside className="rail">
           <Listing />
+          <History />
         </aside>
       </main>
       <StatusLine />

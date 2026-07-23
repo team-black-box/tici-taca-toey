@@ -4,8 +4,8 @@
 
 <p align="center">
   A multiplayer game of tic tac toe over websockets, with configurable board
-  sizes (2-12), player counts (2-10), winning sequence lengths, spectators,
-  and QR-code game invites.<br>
+  sizes (2-12), player counts (2-10), winning sequence lengths, teams,
+  spectators, and QR-code game invites.<br>
   Built in 2020, revived in 2026, intended to run for decades.
 </p>
 

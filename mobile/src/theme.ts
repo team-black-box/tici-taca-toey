@@ -117,11 +117,24 @@ export const getStatusForViewer = (
     return PLAIN_STATUS[game.status];
   }
   const onTime = game.status === GameStatus.GAME_WON_BY_TIMEOUT;
-  if (game.winner === viewerId) {
+  // Team games win and lose as a side.
+  const teamOf = (playerId: string) =>
+    game.teamCount > 0
+      ? game.players.indexOf(playerId) % game.teamCount
+      : game.players.indexOf(playerId);
+  const viewerWon =
+    game.winner === viewerId ||
+    (game.teamCount > 0 &&
+      game.players.includes(viewerId) &&
+      teamOf(viewerId) === teamOf(game.winner));
+  if (viewerWon) {
     return { text: onTime ? "WON ON TIME" : "GAME WON", color: C.info };
   }
   if (game.players.includes(viewerId)) {
     return { text: onTime ? "LOST ON TIME" : "GAME LOST", color: C.danger };
+  }
+  if (game.teamCount > 0 && game.winningTeam >= 0) {
+    return { text: `WON BY TEAM ${game.winningTeam + 1}`, color: C.info };
   }
   const winnerName = players[game.winner]?.name;
   return {
@@ -129,3 +142,9 @@ export const getStatusForViewer = (
     color: C.info,
   };
 };
+
+// Team games color and mark by side so the board reads team vs team;
+// teamless games keep the per-seat mapping. Mirrors
+// web/src/common/symbol.ts getSideSymbol.
+export const sideOfSeat = (seat: number, teamCount: number): number =>
+  teamCount > 0 ? seat % teamCount : seat;

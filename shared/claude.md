@@ -4,7 +4,9 @@ This file governs `shared/` - the single source of truth for the wire
 protocol. The root [`claude.md`](../claude.md) applies.
 
 - `model.ts` - game state, enums, summaries, responses. `ttn.ts` - the
-  full TTN codec + replay helpers. `copy.ts` - error copy in the terminal
+  full TTN codec + replay helpers. `rules.ts` - win rules (sequence
+  counting, teams) used by the engine *and* every client, so a board never
+  reads differently than it scores. `copy.ts` - error copy in the terminal
   voice. Zero dependencies, no runtime imports beyond each other.
 - Everything here is imported by server, web, mobile, sdk, mcp, and the
   playground. A change here IS a protocol change: run the full

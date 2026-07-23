@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { getSymbol } from "../../../common/symbol";
+import { getSideSymbol } from "../../../common/symbol";
 import Avatar from "../../../common/avatar";
 import { useAppSelector } from "../../../state/store";
 import { getPlayer } from "../../../state/players";
@@ -50,10 +50,16 @@ interface ActivePlayerProps {
   playerId: string;
   players: string[];
   turn: string;
+  teamCount?: number;
 }
 
-const ActivePlayer = ({ playerId, players, turn }: ActivePlayerProps) => {
-  const symbol = getSymbol(playerId, players);
+const ActivePlayer = ({
+  playerId,
+  players,
+  turn,
+  teamCount = 0,
+}: ActivePlayerProps) => {
+  const symbol = getSideSymbol(playerId, players, teamCount);
   const playerName = useAppSelector(getPlayer(playerId))?.name;
   const timer = useAppSelector(
     (state) => getActiveGame(state)?.timers?.[playerId]

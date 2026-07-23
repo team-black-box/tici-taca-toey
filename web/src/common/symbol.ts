@@ -27,3 +27,21 @@ export const getSymbol = (
     ? { symbol: "", color: "" }
     : GAME_SYMBOL[players.indexOf(playerId) % 10];
 };
+
+// Team games color and mark by side, not seat: teammates share one symbol
+// so the board reads as team vs team. Teamless games fall through to the
+// per-seat mapping.
+export const getSideSymbol = (
+  playerId: string,
+  players: string[],
+  teamCount: number
+): SymbolDescriptors => {
+  if (teamCount <= 0 || playerId === EMPTY_CELL) {
+    return getSymbol(playerId, players);
+  }
+  const seat = players.indexOf(playerId);
+  if (seat < 0) {
+    return { symbol: "", color: "" };
+  }
+  return GAME_SYMBOL[(seat % teamCount) % 10];
+};

@@ -3,7 +3,8 @@ import { Pressable, ScrollView, Share, Text, View, useWindowDimensions } from "r
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, MONO, SYMBOLS, getStatusForViewer } from "../theme";
+import { C, MONO, SYMBOLS, getStatusForViewer, sideOfSeat } from "../theme";
+import { sequenceCounts } from "../rules";
 import { Avatar, Badge, Btn, Clock, styles as ui } from "../ui";
 import { GlassPill } from "../glass";
 import { useAppSelector, makeMove, requestRobot, getShareUrl } from "../state";
@@ -21,7 +22,10 @@ const Board = ({ game, you }: { game: Game; you: string }) => {
       {game.positions.map((row, x) => (
         <View key={x} style={{ flexDirection: "row", gap: 4, marginBottom: 4 }}>
           {row.map((value, y) => {
-            const seat = game.players.indexOf(value);
+            const rawSeat = game.players.indexOf(value);
+            // Team games render by side: teammates share symbol and color.
+            const seat =
+              rawSeat >= 0 ? sideOfSeat(rawSeat, game.teamCount) : -1;
             const open =
               game.status === GameStatus.GAME_IN_PROGRESS &&
               value === "-" &&
@@ -87,6 +91,7 @@ const ReplayView = ({ ttn }: { ttn: string }) => {
   const cell = Math.floor(
     (width - 28 - (decoded.boardSize - 1) * 4) / decoded.boardSize
   );
+  const replaySide = (seat: number) => sideOfSeat(seat, decoded.teamCount);
   return (
     <View style={{ marginTop: 14 }}>
       <Text style={[MONO, { color: C.dim, fontSize: 12, marginBottom: 6 }]}>
@@ -96,7 +101,7 @@ const ReplayView = ({ ttn }: { ttn: string }) => {
         {positions.map((row, x) => (
           <View key={x} style={{ flexDirection: "row", gap: 4, marginBottom: 4 }}>
             {row.map((value, y) => {
-              const seat = value === "-" ? -1 : Number(value);
+              const seat = value === "-" ? -1 : replaySide(Number(value));
               return (
                 <View
                   key={y}
@@ -202,6 +207,25 @@ const GameScreen = () => {
           </Text>
           <Badge text={status.text} color={status.color} />
         </View>
+        {game.winningSequenceCount > 1 &&
+          game.status === GameStatus.GAME_IN_PROGRESS && (
+            <View style={{ flexDirection: "row", gap: 14, marginBottom: 4 }}>
+              {sequenceCounts(
+                game.positions,
+                game.players,
+                game.winningSequenceLength,
+                game.teamCount
+              ).map((count, side) => (
+                <Text
+                  key={side}
+                  style={[MONO, { color: C.syms[side % 10], fontSize: 11 }]}
+                >
+                  {game.teamCount > 0 ? `TEAM ${side + 1}` : SYMBOLS[side % 10]}{" "}
+                  {count}/{game.winningSequenceCount}
+                </Text>
+              ))}
+            </View>
+          )}
         {canAddRobot && (
           <Btn title="+ ROBOT" ghost onPress={() => requestRobot(game.gameId)} />
         )}
@@ -215,43 +239,67 @@ const GameScreen = () => {
           GameStatus.GAME_WON_BY_TIMEOUT,
         ].includes(game.status) && <ReplayView ttn={game.notation} />}
 
-        <Text style={ui.panelTitle}>{"> players"}</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {game.players.map((playerId, seat) => (
-            <View
-              key={playerId}
-              style={{
-                borderWidth: 1,
-                borderColor:
-                  game.turn === playerId ? C.syms[seat % 10] : C.border,
-                backgroundColor: C.panel,
-                padding: 8,
-                alignItems: "center",
-                minWidth: 76,
-                gap: 3,
-              }}
-            >
-              <Text style={[MONO, { color: C.syms[seat % 10], fontSize: 18, fontWeight: "700" }]}>
-                {SYMBOLS[seat % 10]}
-              </Text>
-              <Avatar name={players[playerId]?.name ?? ""} />
-              <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>
-                {players[playerId]?.name || playerId.slice(0, 6)}
-              </Text>
-              {game.timers?.[playerId] && (
-                <Clock
-                  timeLeft={game.timers[playerId].timeLeft}
-                  isRunning={game.timers[playerId].isRunning}
-                />
-              )}
-              {game.turn === playerId && (
-                <Text style={[MONO, { color: C.syms[seat % 10], fontSize: 9, letterSpacing: 1 }]}>
-                  ▮ TURN
-                </Text>
-              )}
+        {/* Team games group the roster by side; each side shares a color. */}
+        {(game.teamCount > 0
+          ? Array.from({ length: game.teamCount }, (_, team) => ({
+              title: `> team ${team + 1}`,
+              seats: game.players
+                .map((playerId, seat) => ({ playerId, seat }))
+                .filter(({ seat }) => seat % game.teamCount === team),
+            }))
+          : [
+              {
+                title: "> players",
+                seats: game.players.map((playerId, seat) => ({
+                  playerId,
+                  seat,
+                })),
+              },
+            ]
+        ).map((group) => (
+          <View key={group.title}>
+            <Text style={ui.panelTitle}>{group.title}</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {group.seats.map(({ playerId, seat }) => {
+                const side = sideOfSeat(seat, game.teamCount);
+                return (
+                  <View
+                    key={playerId}
+                    style={{
+                      borderWidth: 1,
+                      borderColor:
+                        game.turn === playerId ? C.syms[side % 10] : C.border,
+                      backgroundColor: C.panel,
+                      padding: 8,
+                      alignItems: "center",
+                      minWidth: 76,
+                      gap: 3,
+                    }}
+                  >
+                    <Text style={[MONO, { color: C.syms[side % 10], fontSize: 18, fontWeight: "700" }]}>
+                      {SYMBOLS[side % 10]}
+                    </Text>
+                    <Avatar name={players[playerId]?.name ?? ""} />
+                    <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>
+                      {players[playerId]?.name || playerId.slice(0, 6)}
+                    </Text>
+                    {game.timers?.[playerId] && (
+                      <Clock
+                        timeLeft={game.timers[playerId].timeLeft}
+                        isRunning={game.timers[playerId].isRunning}
+                      />
+                    )}
+                    {game.turn === playerId && (
+                      <Text style={[MONO, { color: C.syms[side % 10], fontSize: 9, letterSpacing: 1 }]}>
+                        ▮ TURN
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
             </View>
-          ))}
-        </View>
+          </View>
+        ))}
       </ScrollView>
     </View>
   );

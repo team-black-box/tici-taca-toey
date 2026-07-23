@@ -4,6 +4,7 @@
 // behavioral source of truth.
 import { useSyncExternalStore } from "react";
 import {
+  ArchivedGameSummary,
   Game,
   GameStore,
   GameSummary,
@@ -54,6 +55,8 @@ export interface AppState {
   players: StaticPlayerStore;
   lobby: GameSummary[];
   robots: RobotSummary[];
+  // Finished games from the server archive (MY_GAMES), newest first.
+  history: ArchivedGameSummary[];
   feedback: FeedbackEvent[];
 }
 
@@ -70,6 +73,7 @@ let state: AppState = {
   players: {},
   lobby: [],
   robots: [],
+  history: [],
   feedback: [],
 };
 
@@ -160,6 +164,10 @@ const reduce = (action: Response) => {
     "game" in action && GAME_BEARING.includes(action.type as MessageTypes);
   state = {
     feedback: state.feedback,
+    history:
+      action.type === MessageTypes.MY_GAMES
+        ? (action as { games: ArchivedGameSummary[] }).games
+        : state.history,
     robots:
       action.type === MessageTypes.LIST_GAMES && "robots" in action
         ? ((action as { robots?: RobotSummary[] }).robots ?? [])
@@ -275,6 +283,15 @@ const connect = () => {
           type: MessageTypes.REQUEST_ROBOT,
           gameId: response.game.gameId,
         });
+      }
+      // History changes exactly when a game of mine ends; registration
+      // fetches the initial list (empty on a server without a database).
+      if (
+        response.type === MessageTypes.REGISTER_PLAYER ||
+        response.type === MessageTypes.GAME_COMPLETE ||
+        response.type === MessageTypes.PLAYER_DISCONNECT
+      ) {
+        sendToServer({ type: MessageTypes.LIST_MY_GAMES });
       }
       reduce(response);
     } catch (error) {
@@ -422,7 +439,9 @@ export const startGame = (
   playerCount: number,
   winningSequenceLength: number,
   timePerPlayer?: number,
-  incrementPerPlayer?: number
+  incrementPerPlayer?: number,
+  winningSequenceCount?: number,
+  teamCount?: number
 ) => {
   dispatch({
     type: MessageTypes.START_GAME,
@@ -430,6 +449,8 @@ export const startGame = (
     boardSize,
     playerCount,
     winningSequenceLength,
+    winningSequenceCount,
+    teamCount,
     timePerPlayer,
     incrementPerPlayer,
   });

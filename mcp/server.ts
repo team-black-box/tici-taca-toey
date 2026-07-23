@@ -18,6 +18,7 @@ import {
   MCP_PROTOCOL_VERSION,
   MCP_SERVER_INFO,
   MCP_TOOLS,
+  renderGame,
 } from "../shared/mcp";
 
 const SERVER_URL = process.env.TTT_SERVER_URL ?? "ws://localhost:8080";
@@ -25,7 +26,6 @@ const PROTOCOL_VERSION = MCP_PROTOCOL_VERSION;
 const COMMAND_TIMEOUT_MS = 8_000;
 const DEFAULT_WAIT_SECONDS = 60;
 const MAX_WAIT_SECONDS = 300;
-const SYMBOLS = ["X", "O", "A", "B", "C", "D", "E", "F", "G", "H"];
 const COMPLETED_STATUSES = new Set([
   "GAME_WON",
   "GAME_ENDS_IN_A_DRAW",
@@ -69,77 +69,6 @@ type GameState = Omit<
 
 const webOrigin = SERVER_URL.replace(/^ws/, "http").replace(/\/+$/, "");
 
-const renderGame = (
-  game: GameState,
-  me: string,
-  names: Record<string, string>
-): string => {
-  const nameOf = (id: string) =>
-    `${names[id] ?? id.slice(0, 8)}${id === me ? " (you)" : ""}`;
-  const seatOf = (id: string) => game.players.indexOf(id);
-  const lines: string[] = [];
-  lines.push(`game "${game.name}" [${game.gameId}]`);
-  lines.push(
-    `${game.boardSize}x${game.boardSize} board, win ${game.winningSequenceLength} in a row, ${game.players.length}/${game.playerCount} seats`
-  );
-  lines.push(
-    `players: ${game.players
-      .map((id) => `${SYMBOLS[seatOf(id) % SYMBOLS.length]}=${nameOf(id)}`)
-      .join(", ") || "(none yet)"}`
-  );
-  if (game.timed) {
-    lines.push(
-      `clocks: ${game.players
-        .map(
-          (id) =>
-            `${SYMBOLS[seatOf(id) % SYMBOLS.length]} ${(
-              (game.timers[id]?.timeLeft ?? 0) / 1000
-            ).toFixed(0)}s`
-        )
-        .join(", ")}`
-    );
-  }
-  const header = `     ${Array.from({ length: game.boardSize }, (_, y) =>
-    String(y).padStart(2)
-  ).join(" ")}`;
-  lines.push("board (rows are x, columns are y):");
-  lines.push(header);
-  game.positions.forEach((row, x) => {
-    lines.push(
-      `x=${String(x).padStart(2)} ${row
-        .map((cell) => {
-          const seat = seatOf(cell);
-          return (seat >= 0 ? SYMBOLS[seat % SYMBOLS.length] : ".").padStart(2);
-        })
-        .join(" ")}`
-    );
-  });
-  if (COMPLETED_STATUSES.has(game.status)) {
-    const result =
-      game.status === "GAME_ENDS_IN_A_DRAW"
-        ? "draw"
-        : game.status === "GAME_ABANDONED"
-        ? "abandoned"
-        : `won by ${nameOf(game.winner)}${
-            game.status === "GAME_WON_BY_TIMEOUT" ? " on time" : ""
-          }`;
-    lines.push(`status: game over - ${result}`);
-    if (game.notation) {
-      lines.push(`replay: ${webOrigin}/replay/${game.notation}`);
-    }
-  } else if (game.status === "WAITING_FOR_PLAYERS") {
-    lines.push(
-      `status: waiting for players - share ${webOrigin}/play/${game.gameId} or call request_robot`
-    );
-  } else {
-    lines.push(
-      game.turn === me
-        ? "status: YOUR MOVE - call make_move with empty x,y"
-        : `status: waiting for ${nameOf(game.turn)} - call wait_for_turn`
-    );
-  }
-  return lines.join("\n");
-};
 
 // --- the websocket bridge -------------------------------------------------
 
@@ -332,7 +261,12 @@ const stateOf = (gameId: string): string => {
   if (!game) {
     return `no local state for game ${gameId} - join_game or spectate_game first`;
   }
-  return renderGame(game, bridge.playerId, bridge.names);
+  return renderGame(
+    game as import("../shared/model").Game,
+    bridge.playerId,
+    bridge.names,
+    webOrigin
+  );
 };
 
 interface Tool {
@@ -400,6 +334,10 @@ const TOOLS: Record<string, Tool> = {
           boardSize: Number(args.boardSize ?? 3),
           playerCount: Number(args.playerCount ?? 2),
           winningSequenceLength: Number(args.winningSequenceLength ?? 3),
+          ...(args.winningSequenceCount
+            ? { winningSequenceCount: Number(args.winningSequenceCount) }
+            : {}),
+          ...(args.teamCount ? { teamCount: Number(args.teamCount) } : {}),
           ...(args.timePerPlayer
             ? {
                 timePerPlayer: Number(args.timePerPlayer),

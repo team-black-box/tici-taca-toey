@@ -41,6 +41,13 @@ export interface Game {
   winner: string;
   winningSequence: WinningSequence[];
   winningSequenceLength: number;
+  // Variant: number of sequences required to win (1 = the classic game).
+  winningSequenceCount: number;
+  // Variant: number of equal teams (0 = no teams). Team of a seat is
+  // seat % teamCount - the rotation interleaves teams automatically.
+  teamCount: number;
+  // Winning team index when a team game ends in a win, else -1.
+  winningTeam: number;
   status: GameStatus;
   turn: string;
   timers: Record<string, TimerBase>;
@@ -103,6 +110,8 @@ export interface GameSummary {
   name: string;
   boardSize: number;
   winningSequenceLength: number;
+  winningSequenceCount: number;
+  teamCount: number;
   playerCount: number;
   humanCount: number;
   robotCount: number;
@@ -150,6 +159,26 @@ export interface ListGamesResponse {
   robots: RobotSummary[];
 }
 
+// One finished game from the archive, shaped for the player who asked:
+// handles only (never playerIds - they are not meant to circulate), plus
+// the requester's own seat so clients can render the result from their
+// perspective. `ttn` replays the whole game client-side.
+export interface ArchivedGameSummary {
+  gameId: string;
+  ttn: string;
+  status: GameStatus;
+  winnerSeat: number | null;
+  mySeat: number;
+  startedAt: number;
+  completedAt: number;
+  players: Array<{ seat: number; handle: string }>;
+}
+
+export interface MyGamesResponse {
+  type: MessageTypes.MY_GAMES;
+  games: ArchivedGameSummary[];
+}
+
 // Client-local actions share the response pipeline in both app stores.
 export interface UpdateNameAction {
   type: MessageTypes.UPDATE_NAME;
@@ -173,6 +202,7 @@ export type Response =
   | RegisterPlayerResponse
   | GameActionResponse
   | ListGamesResponse
+  | MyGamesResponse
   | HandleClaimedResponse
   | UpdateNameAction
   | ConnectedToServerAction
@@ -201,6 +231,8 @@ export enum MessageTypes {
   PLAYER_TIMEOUT = "PLAYER_TIMEOUT",
   NOTIFY_TIME = "NOTIFY_TIME",
   LIST_GAMES = "LIST_GAMES",
+  LIST_MY_GAMES = "LIST_MY_GAMES",
+  MY_GAMES = "MY_GAMES", // response only
   CLAIM_HANDLE = "CLAIM_HANDLE",
   HANDLE_CLAIMED = "HANDLE_CLAIMED", // response only
   UPDATE_NAME = "UPDATE_NAME", // client only
@@ -221,6 +253,8 @@ export enum ErrorCodes {
   PLAYER_COUNT_LESS_THAN_2 = "PLAYER_COUNT_LESS_THAN_2",
   PLAYER_COUNT_MUST_BE_LESS_THAN_BOARD_SIZE = "PLAYER_COUNT_MUST_BE_LESS_THAN_BOARD_SIZE",
   WIN_SEQ_LENGTH_MUST_BE_LESS_THAN_OR_EQUAL_TO_BOARD_SIZE = "WINNING_SEQUENCE_LENGTH_MUST_BE_LESS_THAN_OR_EQUAL_TO_BOARD_SIZE",
+  INVALID_WINNING_SEQUENCE_COUNT = "INVALID_WINNING_SEQUENCE_COUNT",
+  INVALID_TEAM_CONFIGURATION = "INVALID_TEAM_CONFIGURATION",
   BOARD_SIZE_CANNOT_BE_GREATER_THAN_12 = "BOARD_SIZE_CANNOT_BE_GREATER_THAN_12",
   PLAYER_COUNT_CANNOT_BE_GREATER_THAN_10 = "PLAYER_COUNT_CANNOT_BE_GREATER_THAN_10",
   SPECTATOR_COUNT_CANNOT_BE_GREATER_THAN_10 = "SPECTATOR_COUNT_CANNOT_BE_GREATER_THAN_10",

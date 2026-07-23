@@ -19,6 +19,10 @@ export interface StartGameMessage {
   boardSize: number;
   playerCount: number;
   winningSequenceLength: number;
+  // Variant: sequences required to win (default 1, the classic game).
+  winningSequenceCount?: number;
+  // Variant: equal teams (default 0 = none); playerCount % teamCount == 0.
+  teamCount?: number;
   timePerPlayer?: number;
   incrementPerPlayer?: number;
 }
@@ -49,6 +53,12 @@ export interface ListGamesMessage {
   type: MessageTypes.LIST_GAMES;
 }
 
+// Personal archive request; the server knows who is asking from the
+// socket, so this carries nothing.
+export interface ListMyGamesMessage {
+  type: MessageTypes.LIST_MY_GAMES;
+}
+
 export interface MakeMoveMessage {
   type: MessageTypes.MAKE_MOVE;
   coordinateX: number;
@@ -63,6 +73,7 @@ export type Message =
   | JoinGameMessage
   | SpectateGameMessage
   | ListGamesMessage
+  | ListMyGamesMessage
   | ClaimHandleMessage
   | MakeMoveMessage;
 

@@ -28,6 +28,20 @@ exquisite taste in design.
 
 ## Completed
 
+- Game variants, ratings, and history (2026-07-23): four features shipped
+  together across server, web, and mobile
+  ([variants](./tasks/game-variants.md),
+  [ratings](./tasks/difficulty-elo.md), [history](./tasks/game-history.md)).
+  **Multiple win sequences** (e.g. four length-2 sequences on a 12x12) and
+  **teams** (sequences may combine teammates' marks) are new game variants
+  whose rules live once in `shared/rules.ts`; TTN v3 records them.
+  **Difficulty-weighted Elo** adds a headline `global` pool where the
+  K-factor scales with how hard the configuration is, alongside the
+  per-config pools. **Personal game history** lists your finished games
+  with one-click replay, served over the websocket. Also: the leaderboard
+  no longer exposes player ids, and the `/players/*` and `/games/:id`
+  endpoints are gone (history moved to the socket). Robots are
+  variant-aware.
 - MCP over streamable HTTP (2026-07-23): the game server serves `/mcp`
   itself, so an agent connects with a URL and no local install. A session
   is an in-process player; `shared/mcp.ts` holds the one tool contract

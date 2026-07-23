@@ -12,6 +12,7 @@ import {
   PlayerConnection,
   RobotCapabilities,
 } from "./model";
+import { countSequences, ownerOfSeat, teamOfSeat } from "./rules";
 import type TiciTacaToeyGameEngine from "./TiciTacaToeyGameEngine";
 
 const EMPTY = "-";
@@ -40,30 +41,58 @@ const DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
   [1, -1],
 ];
 
+// Same side as `playerId`: their team in a team game, else just them.
+const alliesOf = (game: Game, playerId: string): ((value: string) => boolean) =>
+  ownerOfSeat(game.players, game.players.indexOf(playerId), game.teamCount);
+
+const isVariant = (game: Game): boolean =>
+  game.winningSequenceCount > 1 || game.teamCount > 0;
+
 const isWinningPlacement = (
   game: Game,
   playerId: string,
   move: Move
 ): boolean => {
-  const size = game.boardSize;
-  const at = (x: number, y: number): string =>
-    x === move.x && y === move.y ? playerId : game.positions[x][y];
-  for (const [dx, dy] of DIRECTIONS) {
-    let run = 1;
-    for (const sign of [1, -1] as const) {
-      let x = move.x + dx * sign;
-      let y = move.y + dy * sign;
-      while (x >= 0 && x < size && y >= 0 && y < size && at(x, y) === playerId) {
-        run++;
-        x += dx * sign;
-        y += dy * sign;
+  // Classic games: a win must run through the new mark, so scan only the
+  // four lines through it - O(4 * winLen).
+  if (!isVariant(game)) {
+    const size = game.boardSize;
+    const at = (x: number, y: number): string =>
+      x === move.x && y === move.y ? playerId : game.positions[x][y];
+    for (const [dx, dy] of DIRECTIONS) {
+      let run = 1;
+      for (const sign of [1, -1] as const) {
+        let x = move.x + dx * sign;
+        let y = move.y + dy * sign;
+        while (
+          x >= 0 &&
+          x < size &&
+          y >= 0 &&
+          y < size &&
+          at(x, y) === playerId
+        ) {
+          run++;
+          x += dx * sign;
+          y += dy * sign;
+        }
+      }
+      if (run >= game.winningSequenceLength) {
+        return true;
       }
     }
-    if (run >= game.winningSequenceLength) {
-      return true;
-    }
+    return false;
   }
-  return false;
+  // Variants: teammates' marks count too, and the bar is the required
+  // number of sequences - the same rules the engine settles with.
+  const previous = game.positions[move.x][move.y];
+  game.positions[move.x][move.y] = playerId;
+  const { count } = countSequences(
+    game.positions,
+    game.winningSequenceLength,
+    alliesOf(game, playerId)
+  );
+  game.positions[move.x][move.y] = previous;
+  return count >= game.winningSequenceCount;
 };
 
 const findWinningMove = (game: Game, playerId: string): Move | null => {
@@ -87,8 +116,14 @@ const greedyMove = (game: Game, you: string): Move => {
   if (winNow) {
     return winNow;
   }
+  // Block opponents - never a teammate, whose threat is our own win.
+  const myTeam = teamOfSeat(game.players.indexOf(you), game.teamCount);
   for (const opponent of game.players) {
-    if (opponent === you) {
+    const sameSide =
+      game.teamCount > 0
+        ? teamOfSeat(game.players.indexOf(opponent), game.teamCount) === myTeam
+        : opponent === you;
+    if (sameSide) {
       continue;
     }
     const threat = findWinningMove(game, opponent);

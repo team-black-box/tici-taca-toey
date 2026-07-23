@@ -19,14 +19,28 @@ const INCREMENT_CHOICES = [
   { label: "+5s", ms: 5_000 },
 ];
 
+// Equal teams only: valid team counts divide the players into sides of at
+// least two.
+const teamChoicesFor = (playerCount: number): number[] =>
+  Array.from({ length: playerCount }, (_, index) => index + 2).filter(
+    (teams) => playerCount % teams === 0 && teams <= playerCount / 2
+  );
+
 const Start = () => {
   const [name, setName] = useState(DEFAULT_GAME_NAME);
   const [boardSize, setBoardSize] = useState("3");
   const [playerCount, setPlayerCount] = useState("2");
   const [winningSequenceLength, setWinningSequenceLength] = useState("3");
+  const [winningSequenceCount, setWinningSequenceCount] = useState("1");
+  const [teamCount, setTeamCount] = useState("0");
   const [timed, setTimed] = useState(false);
   const [timePerPlayer, setTimePerPlayer] = useState("180000");
   const [incrementPerPlayer, setIncrementPerPlayer] = useState("1000");
+
+  const teamChoices = teamChoicesFor(Number(playerCount));
+  const chosenTeams = teamChoices.includes(Number(teamCount))
+    ? Number(teamCount)
+    : 0;
 
   const startGameDelegate = () => {
     startGame(
@@ -35,7 +49,11 @@ const Start = () => {
       Number(playerCount),
       Number(winningSequenceLength),
       timed ? Number(timePerPlayer) : undefined,
-      timed ? Number(incrementPerPlayer) : undefined
+      timed ? Number(incrementPerPlayer) : undefined,
+      Number(winningSequenceCount) > 1
+        ? Number(winningSequenceCount)
+        : undefined,
+      chosenTeams > 0 ? chosenTeams : undefined
     );
   };
 
@@ -76,17 +94,48 @@ const Start = () => {
           />
         </div>
       </div>
-      <div className="field">
-        <label htmlFor="start-winlen">win sequence</label>
-        <input
-          id="start-winlen"
-          type="number"
-          max={Number(boardSize)}
-          min={3}
-          value={winningSequenceLength}
-          onChange={extractValueAndSet(setWinningSequenceLength)}
-        />
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="start-winlen">win sequence</label>
+          <input
+            id="start-winlen"
+            type="number"
+            max={Number(boardSize)}
+            min={2}
+            value={winningSequenceLength}
+            onChange={extractValueAndSet(setWinningSequenceLength)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="start-wincount"># to win</label>
+          <input
+            id="start-wincount"
+            type="number"
+            min={1}
+            max={10}
+            value={winningSequenceCount}
+            onChange={extractValueAndSet(setWinningSequenceCount)}
+            title="sequences required to win - e.g. 4 sequences of length 2 on a big board"
+          />
+        </div>
       </div>
+      {teamChoices.length > 0 && (
+        <div className="field">
+          <label htmlFor="start-teams">teams</label>
+          <select
+            id="start-teams"
+            value={String(chosenTeams)}
+            onChange={extractValueAndSet(setTeamCount)}
+          >
+            <option value="0">no teams</option>
+            {teamChoices.map((teams) => (
+              <option key={teams} value={teams}>
+                {teams} teams of {Number(playerCount) / teams}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <label className="check">
         <input
           type="checkbox"

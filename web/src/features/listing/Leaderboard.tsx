@@ -2,17 +2,19 @@ import { useEffect, useState } from "react";
 import { getServerHttpBase } from "../../state/socket";
 import { RobotIcon } from "../../common/icons";
 
+// Public rows carry handles only - the server never exposes player ids.
 interface Row {
-  playerId: string;
   handle: string;
   isRobot: boolean;
   rating: number;
   games: number;
 }
 
-// Top hackers per rating pool, from the server's HTTP API.
+// Top hackers, from the server's HTTP API. "global" is the headline pool:
+// every game feeds it, with rating movement scaled by the game's
+// difficulty; the per-configuration pools remain selectable.
 const Leaderboard = () => {
-  const [pool, setPool] = useState("3x3x2");
+  const [pool, setPool] = useState("global");
   const [pools, setPools] = useState<string[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
 
@@ -58,7 +60,7 @@ const Leaderboard = () => {
       )}
       <ol className="board-list">
         {rows.map((row, index) => (
-          <li key={row.playerId} className="board-row">
+          <li key={`${row.handle}-${index}`} className="board-row">
             <span className="dim">{index + 1}</span>
             <span className="board-handle">
               {row.handle}

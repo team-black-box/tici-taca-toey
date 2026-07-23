@@ -60,19 +60,34 @@ const Replay = ({ ttn }: { ttn: string }) => {
     lastMove && !lastMove.skip && lastMove.clockMs > 0
       ? `${(lastMove.clockMs / 1000).toFixed(1)}s`
       : null;
+  // Team games render by side: teammates share a symbol, and the result
+  // names the team.
+  const sideOf = (seat: number) =>
+    decoded.teamCount > 0 ? seat % decoded.teamCount : seat;
   const resultText =
     decoded.result.kind === "draw"
       ? "draw"
       : decoded.result.kind === "abandoned"
       ? "abandoned"
-      : `${GAME_SYMBOL[decoded.result.winnerSeat! % 10].symbol} wins${
-          decoded.result.kind === "timeout" ? " on time" : ""
-        }`;
+      : `${
+          decoded.result.winnerTeam !== undefined
+            ? `team ${decoded.result.winnerTeam + 1}`
+            : GAME_SYMBOL[decoded.result.winnerSeat! % 10].symbol
+        } wins${decoded.result.kind === "timeout" ? " on time" : ""}`;
+  const configText = [
+    `${decoded.boardSize}x${decoded.boardSize}`,
+    decoded.winningSequenceCount > 1
+      ? `${decoded.winningSequenceCount}×${decoded.winningSequenceLength} to win`
+      : null,
+    decoded.teamCount > 0 ? `${decoded.teamCount} teams` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div>
       <div className="status-row">
-        <div className="game-name">replay</div>
+        <div className="game-name">replay · {configText}</div>
         <div className="badge badge--done">
           {frame}/{total} · {resultText}
           {thinkTime ? ` · thought ${thinkTime}` : ""}
@@ -87,7 +102,7 @@ const Replay = ({ ttn }: { ttn: string }) => {
       >
         {positions.flat().map((cell, index) => {
           const seat = cell === "-" ? -1 : Number(cell);
-          const symbol = seat >= 0 ? GAME_SYMBOL[seat % 10] : null;
+          const symbol = seat >= 0 ? GAME_SYMBOL[sideOf(seat) % 10] : null;
           return (
             <div
               key={index}

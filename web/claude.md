@@ -62,7 +62,18 @@ Run from inside `web/`:
   server" (click to spectate).
 - Finished games render from the viewer's perspective via
   `getStatusForViewer` in `src/common/status.ts`: GAME WON for the winner,
-  GAME LOST for beaten players, WON BY <name> for spectators.
+  GAME LOST for beaten players, WON BY <name> for spectators. In a team
+  game the whole winning team sees GAME WON.
+- Game variants (see `server/claude.md` for the rules): the start form
+  offers `# to win` and a teams picker; `src/common/rules.ts` shims
+  `shared/rules.ts` so the sequence counters in `Status.tsx` are computed
+  with the same code the server scores with. Team games color and mark by
+  side via `getSideSymbol`, and `Players.tsx` groups the roster per team.
+- Personal history: `state/history.ts` holds the `MY_GAMES` response,
+  refreshed on registration and whenever a game of yours ends;
+  `features/listing/History.tsx` renders it in the rail, one click to the
+  replay viewer. It travels over the websocket precisely so **no player id
+  ever appears in a URL** - the leaderboard API returns handles only.
 - The replay viewer (`src/features/replay/Replay.tsx`, route
   `/replay/<ttn>`) is fully client-side: the TTN codec lives in
   `shared/ttn.ts` (one copy for every module) and v2 clock tracks render

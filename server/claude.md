@@ -65,7 +65,9 @@ Message types: `REGISTER_PLAYER`, `REGISTER_ROBOT`, `REQUEST_ROBOT`,
 `START_GAME`, `JOIN_GAME`, `MAKE_MOVE`, `SPECTATE_GAME`, `LIST_GAMES`
 (returns lobby summaries - name, board, human/robot/spectator counts -
 for WAITING/IN_PROGRESS games, sent only to the requester; clients poll
-~5s). Server-internal:
+~5s), `LIST_MY_GAMES` (the requester's finished games from the archive,
+answered as `MY_GAMES`; handles only, never playerIds, and an empty list
+rather than an error when the server has no database). Server-internal:
 `PLAYER_DISCONNECT`, `PLAYER_ABANDON`, `PLAYER_TIMEOUT`, `NOTIFY_TIME`.
 Response-only: `GAME_COMPLETE` (sent when a game reaches `GAME_WON`,
 `GAME_ENDS_IN_A_DRAW`, or `GAME_WON_BY_TIMEOUT`) and `GAME_RESUMED`.
@@ -103,7 +105,11 @@ count as load (including waiting games) and are released on every completion
 path: win, draw, timeout, abandon, sweep. The broadcast for a seated robot
 is a plain `JOIN_GAME`, so clients need nothing special. Robot-vs-robot is
 just multiple `REQUEST_ROBOT` calls. The SDK in `sdk/` wraps all of this;
-reference robots live in `robots/`. The SDK is strategy-neutral by policy:
+reference robots live in `robots/`. Residents and reference robots are
+variant-aware: their win test uses the shared rules (so teammates' marks
+count and several sequences are required when the game asks for them), and
+greedo blocks only genuine opponents, never a teammate. The SDK is
+strategy-neutral by policy:
 it ships plumbing and board reading only (`emptyCells`), never
 move-evaluation helpers - those live with the robots
 (`robots/strategy.ts`).
@@ -121,7 +127,13 @@ holding the mover's thinking time in deciseconds (`000` for skips). The
 engine appends move/skip/clock tokens as play happens (`clockLog`,
 `turnStartedAt`), sets `game.notation` on completion, includes it in
 `GAME_COMPLETE`, and (in `server.ts`) appends finished games to a data file:
-`TTN_LOG` env var, default `data/games.ttn`, `TTN_LOG=off` to disable. The
+`TTN_LOG` env var, default `data/games.ttn`, `TTN_LOG=off` to disable.
+Variant games (several sequences, or teams) emit **v3**, which inserts the
+two extra fields the classic form has no room for:
+`3.<size>.<winLen>.<seqCount>.<players>.<teams>.<time>.<moves>.<result>[.<clocks>]`
+(example: `3.5.3.1.4.2.u.000i010o02.w0` - 5x5, win 3, 1 sequence, 4 players,
+2 teams). Classic games still emit v1/v2, so the existing corpus and the
+playground's readers are untouched. The
 engine itself defaults to no file logging (`ttnLogPath` option), so tests
 never write files. Data collection must never affect gameplay - the append
 is fire-and-forget. The codec lives in `shared/ttn.ts` (one
@@ -166,11 +178,33 @@ substrate for the ML playground in `playground/` (see its README).
   therefore linger for the completed TTL so connected clients see the final
   state. Anything that creates a timer must guarantee a path to `destroy()`.
 
+## Game Variants
+
+Two optional variants generalize the classic game, and their rules live in
+`shared/rules.ts` so the engine, web, and mobile all agree:
+
+- **Multiple sequences** (`winningSequenceCount`, default 1): a game can
+  require N sequences of the win length. Within one direction a maximal run
+  of R counts as `floor(R / winLen)` sequences, so overlapping windows never
+  double-count; runs in *different* directions each count, so sequences may
+  cross like crossword answers. Validation refuses counts that cannot
+  physically fit in a side's share of the board.
+- **Teams** (`teamCount`, default 0 = none): equal teams only
+  (`playerCount % teamCount == 0`, at least two per team). The team of a
+  seat is `seat % teamCount`, which makes the existing rotation interleave
+  teams with **no turn-order changes at all**. Sequences may combine
+  teammates' marks; clients color and mark by side. A team game ends on
+  time only when a whole team's clocks have run out, and ratings settle
+  team-vs-team (never between teammates).
+
 ## Winner Calculation
 
-`calculateWinner` scans only the four lines through the last move:
-O(4 x winningSequenceLength) per move. It returns the winner plus the
-`winningSequence` cells the web client highlights.
+`calculateWinner` keeps the classic fast path - a win must run through the
+last move, so it scans only the four lines through that cell,
+O(4 x winningSequenceLength) per move. Variant games (several sequences, or
+teams) fall through to the shared full-board counter instead. It returns the
+winner, the `winningSequence` cells the web client highlights, and the
+winning team (-1 when teamless).
 
 History note: the original 2020 `calculateWinnerV2` had a broken right
 diagonal scan (it decremented `xPosRight` twice). The regression test in

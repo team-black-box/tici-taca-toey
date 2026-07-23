@@ -1,5 +1,5 @@
 import TiciTacaToeyGameEngine from "./TiciTacaToeyGameEngine";
-import { GameDb } from "./db";
+import { GameDb, GLOBAL_POOL } from "./db";
 import { startResidents } from "./residents";
 import { createStaticHandler } from "./static";
 import { handleMcpRequest, mcpSessionCount, sweepMcpSessions } from "./mcp";
@@ -171,38 +171,17 @@ const server = Bun.serve<SocketData>({
         mcpSessions: mcpSessionCount(),
       });
     }
-    if (engine.db) {
-      if (url.pathname === "/leaderboard") {
-        const pool = url.searchParams.get("pool") ?? "3x3x2";
-        const limit = Number(url.searchParams.get("limit") ?? 25);
-        return json({
-          pool,
-          pools: engine.db.pools(),
-          rows: engine.db.leaderboard(pool, Number.isFinite(limit) ? limit : 25),
-        });
-      }
-      const gameMatch = url.pathname.match(/^[/]games[/]([a-zA-Z0-9-]+)$/);
-      if (gameMatch) {
-        const game = engine.db.getGame(gameMatch[1]);
-        return game ? json(game) : json({ error: "not found" }, 404);
-      }
-      const playerGamesMatch = url.pathname.match(
-        /^[/]players[/]([a-zA-Z0-9-]+)[/]games$/
-      );
-      if (playerGamesMatch) {
-        const limit = Number(url.searchParams.get("limit") ?? 25);
-        return json({
-          games: engine.db.playerGames(
-            playerGamesMatch[1],
-            Number.isFinite(limit) ? limit : 25
-          ),
-        });
-      }
-      const playerMatch = url.pathname.match(/^[/]players[/]([a-zA-Z0-9-]+)$/);
-      if (playerMatch) {
-        const profile = engine.db.playerProfile(playerMatch[1]);
-        return profile ? json(profile) : json({ error: "not found" }, 404);
-      }
+    // The one public read endpoint the db backs: leaderboard rows carry
+    // handles only. Personal history goes over the websocket
+    // (LIST_MY_GAMES), so player ids never appear in URLs or public JSON.
+    if (engine.db && url.pathname === "/leaderboard") {
+      const pool = url.searchParams.get("pool") ?? GLOBAL_POOL;
+      const limit = Number(url.searchParams.get("limit") ?? 25);
+      return json({
+        pool,
+        pools: engine.db.pools(),
+        rows: engine.db.leaderboard(pool, Number.isFinite(limit) ? limit : 25),
+      });
     }
     if (
       ALLOWED_ORIGINS.length > 0 &&

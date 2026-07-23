@@ -2,7 +2,7 @@
 // opponent's immediate win, otherwise take the most central empty cell.
 // Run: bun robots/greedy.ts [ws://server:8080]
 import { TiciTacaToeyRobot, emptyCells } from "../sdk/src/index";
-import { findWinningMove } from "./strategy";
+import { findWinningMove, isSameSide } from "./strategy";
 
 new TiciTacaToeyRobot({
   url: process.argv[2] ?? process.env.TTT_SERVER_URL ?? "ws://localhost:8080",
@@ -18,8 +18,9 @@ new TiciTacaToeyRobot({
     if (winNow) {
       return winNow;
     }
+    // Block opponents only - a teammate's winning move is our own win.
     for (const opponent of game.players) {
-      if (opponent === you) {
+      if (isSameSide(game, you, opponent)) {
         continue;
       }
       const threat = findWinningMove(game, opponent);

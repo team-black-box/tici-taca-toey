@@ -32,6 +32,14 @@ const LiveGameTile = ({ summary }: { summary: GameSummary }) => {
         <span>
           {summary.boardSize}x{summary.boardSize}
         </span>
+        {summary.winningSequenceCount > 1 && (
+          <span title={`${summary.winningSequenceCount} sequences of ${summary.winningSequenceLength} to win`}>
+            {summary.winningSequenceCount}×{summary.winningSequenceLength}
+          </span>
+        )}
+        {summary.teamCount > 0 && (
+          <span>{summary.teamCount} teams</span>
+        )}
         <span>
           <UserIcon />
         </span>

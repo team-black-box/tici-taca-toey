@@ -5,6 +5,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, MONO, getStatusForViewer } from "../theme";
 import { Avatar, Badge, Btn, Field, styles as ui } from "../ui";
+import { decodeTtn } from "../ttn";
+import { GameStatus } from "../model";
 import {
   useAppSelector,
   updateCurrentPlayerName,
@@ -30,13 +32,26 @@ const LobbyScreen = () => {
   const games = useAppSelector((state) => state.games);
   const players = useAppSelector((state) => state.players);
   const connected = useAppSelector((state) => state.currentPlayer.connected);
+  const history = useAppSelector((state) => state.history);
 
   const [gameName, setGameName] = useState("My Amazing Game");
   const [boardSize, setBoardSize] = useState("3");
   const [playerCount, setPlayerCount] = useState("2");
   const [winSeq, setWinSeq] = useState("3");
+  const [winCount, setWinCount] = useState("1");
+  const [teams, setTeams] = useState(0);
   const [timed, setTimed] = useState(false);
   const [minutes, setMinutes] = useState("3");
+
+  // Equal teams only: valid counts divide the players into sides of 2+.
+  const teamChoices = Array.from(
+    { length: Number(playerCount) || 0 },
+    (_, index) => index + 2
+  ).filter(
+    (count) =>
+      Number(playerCount) % count === 0 && count <= Number(playerCount) / 2
+  );
+  const chosenTeams = teamChoices.includes(teams) ? teams : 0;
   const [link, setLink] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [syncCode, setSyncCode] = useState("");
@@ -197,7 +212,28 @@ const LobbyScreen = () => {
           <Field label="BOARD" value={boardSize} onChange={setBoardSize} numeric />
           <Field label="PLAYERS" value={playerCount} onChange={setPlayerCount} numeric />
           <Field label="WIN SEQ" value={winSeq} onChange={setWinSeq} numeric />
+          <Field label="# TO WIN" value={winCount} onChange={setWinCount} numeric />
         </View>
+        {teamChoices.length > 0 && (
+          <View style={{ marginBottom: 8 }}>
+            <Text style={ui.label}>TEAMS</Text>
+            <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+              <Btn
+                title="NONE"
+                ghost={chosenTeams !== 0}
+                onPress={() => setTeams(0)}
+              />
+              {teamChoices.map((count) => (
+                <Btn
+                  key={count}
+                  title={`${count} × ${Number(playerCount) / count}`}
+                  ghost={chosenTeams !== count}
+                  onPress={() => setTeams(count)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8 }}>
           <Switch
             value={timed}
@@ -219,11 +255,68 @@ const LobbyScreen = () => {
               Number(playerCount),
               Number(winSeq),
               timed ? Number(minutes) * 60_000 : undefined,
-              timed ? 1000 : undefined
+              timed ? 1000 : undefined,
+              Number(winCount) > 1 ? Number(winCount) : undefined,
+              chosenTeams > 0 ? chosenTeams : undefined
             )
           }
         />
       </View>
+
+      {history.length > 0 && (
+        <View style={{ marginBottom: 4 }}>
+          <Text style={ui.panelTitle}>{"> your finished games"}</Text>
+          {history.slice(0, 10).map((game) => {
+            const decoded = (() => {
+              try {
+                return decodeTtn(game.ttn);
+              } catch {
+                return null;
+              }
+            })();
+            const teams = decoded?.teamCount ?? 0;
+            const iWon =
+              game.winnerSeat !== null &&
+              game.mySeat >= 0 &&
+              (teams > 0
+                ? game.winnerSeat % teams === game.mySeat % teams
+                : game.winnerSeat === game.mySeat);
+            const result =
+              game.status === GameStatus.GAME_ENDS_IN_A_DRAW
+                ? { text: "DRAW", color: C.info }
+                : game.status === GameStatus.GAME_ABANDONED
+                ? { text: "ABANDONED", color: C.danger }
+                : iWon
+                ? { text: "WON", color: C.info }
+                : { text: "LOST", color: C.danger };
+            return (
+              <Pressable
+                key={game.gameId}
+                style={ui.tile}
+                onPress={() =>
+                  navigation.navigate("Replay", { ttn: game.ttn })
+                }
+              >
+                <View>
+                  <Badge text={result.text} color={result.color} />
+                  <Text style={[MONO, { color: C.dim, fontSize: 10, marginTop: 6 }]}>
+                    {game.players.map((player) => player.handle).join(" vs ")}
+                  </Text>
+                </View>
+                <Text style={ui.tileMeta}>
+                  {decoded ? `${decoded.boardSize}x${decoded.boardSize}` : ""}
+                  {"\n"}
+                  {decoded && decoded.winningSequenceCount > 1
+                    ? `${decoded.winningSequenceCount}x${decoded.winningSequenceLength}`
+                    : teams > 0
+                    ? `${teams} teams`
+                    : "tap to replay"}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       <View style={ui.panel}>
         <Text style={ui.panelTitle}>{"> join game"}</Text>

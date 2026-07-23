@@ -15,6 +15,10 @@ export const ERROR_COPY: Record<ErrorCodes, string> = {
   [ErrorCodes.PLAYER_COUNT_LESS_THAN_2]: "you need at least 2 players",
   [ErrorCodes.WIN_SEQ_LENGTH_MUST_BE_LESS_THAN_OR_EQUAL_TO_BOARD_SIZE]:
     "win sequence cannot exceed the board size",
+  [ErrorCodes.INVALID_WINNING_SEQUENCE_COUNT]:
+    "that many sequences will not fit - fewer sequences, or a bigger board",
+  [ErrorCodes.INVALID_TEAM_CONFIGURATION]:
+    "teams must split players evenly, at least 2 per team",
   [ErrorCodes.NO_ROBOT_AVAILABLE]:
     "no robot fits this game right now - try a smaller board",
   [ErrorCodes.INVALID_HANDLE]:

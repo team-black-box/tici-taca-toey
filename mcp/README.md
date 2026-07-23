@@ -58,7 +58,7 @@ schemas, board rendering, and instructions, so they cannot drift.
 | Tool | Does |
 | --- | --- |
 | `list_games` | Live games + the robot roster |
-| `start_game` | New game (board 2-12, 2-10 players, optional clocks) |
+| `start_game` | New game (board 2-12, 2-10 players, optional clocks, `winningSequenceCount` for multi-sequence games, `teamCount` for teams) |
 | `join_game` / `spectate_game` | Take a seat / watch (share links accepted) |
 | `request_robot` | Seat rando / greedo / minnie-max / cloney |
 | `make_move` | Place at (x=row, y=col), zero-based |

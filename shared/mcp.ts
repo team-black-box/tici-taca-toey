@@ -8,6 +8,7 @@
 // board rendering, instructions - is defined here so the two can never
 // drift apart.
 import { Game, GameStatus } from "./model";
+import { sequenceCounts, teamOfSeat } from "./rules";
 
 export const MCP_PROTOCOL_VERSION = "2025-06-18";
 export const MCP_SERVER_INFO = {
@@ -21,8 +22,12 @@ export const MCP_INSTRUCTIONS =
   "(boards 2-12, 2-10 players, optional chess clocks). To play: start_game " +
   "(or list_games + join_game), request_robot for an opponent, then loop " +
   "wait_for_turn -> make_move until the game ends. Coordinates are " +
-  "zero-based: x is the row, y is the column. claim_handle once to get on " +
-  "the leaderboard.";
+  "zero-based: x is the row, y is the column. Variants: a game may require " +
+  "several sequences (winningSequenceCount) - within one line, each " +
+  "non-overlapping run of the length counts, and runs in different " +
+  "directions may cross; teams (teamCount) seat players into sides by " +
+  "seat % teamCount, and sequences may combine teammates' marks. " +
+  "claim_handle once to get on the leaderboard.";
 
 const SYMBOLS = ["X", "O", "A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -43,18 +48,49 @@ export const renderGame = (
   const nameOf = (id: string) =>
     `${names[id] ?? id.slice(0, 8)}${id === me ? " (you)" : ""}`;
   const seatOf = (id: string) => game.players.indexOf(id);
+  const teamed = game.teamCount > 0;
+  const teamTag = (id: string) =>
+    teamed ? ` [team ${teamOfSeat(seatOf(id), game.teamCount) + 1}]` : "";
   const lines: string[] = [];
   lines.push(`game "${game.name}" [${game.gameId}]`);
   lines.push(
-    `${game.boardSize}x${game.boardSize} board, win ${game.winningSequenceLength} in a row, ${game.players.length}/${game.playerCount} seats`
+    `${game.boardSize}x${game.boardSize} board, win ${
+      game.winningSequenceCount > 1 ? `${game.winningSequenceCount} x ` : ""
+    }${game.winningSequenceLength} in a row, ${game.players.length}/${
+      game.playerCount
+    } seats${teamed ? `, ${game.teamCount} teams` : ""}`
   );
   lines.push(
     `players: ${
       game.players
-        .map((id) => `${SYMBOLS[seatOf(id) % SYMBOLS.length]}=${nameOf(id)}`)
+        .map(
+          (id) =>
+            `${SYMBOLS[seatOf(id) % SYMBOLS.length]}=${nameOf(id)}${teamTag(id)}`
+        )
         .join(", ") || "(none yet)"
     }`
   );
+  if (
+    game.winningSequenceCount > 1 &&
+    game.status === GameStatus.GAME_IN_PROGRESS
+  ) {
+    const counts = sequenceCounts(
+      game.positions,
+      game.players,
+      game.winningSequenceLength,
+      game.teamCount
+    );
+    lines.push(
+      `sequences: ${counts
+        .map(
+          (count, side) =>
+            `${
+              teamed ? `team ${side + 1}` : SYMBOLS[side % SYMBOLS.length]
+            } ${count}/${game.winningSequenceCount}`
+        )
+        .join(", ")}`
+    );
+  }
   if (game.timed) {
     lines.push(
       `clocks: ${game.players
@@ -89,9 +125,11 @@ export const renderGame = (
         ? "draw"
         : game.status === GameStatus.GAME_ABANDONED
         ? "abandoned"
-        : `won by ${nameOf(game.winner)}${
-            game.status === GameStatus.GAME_WON_BY_TIMEOUT ? " on time" : ""
-          }`;
+        : `won by ${
+            game.winningTeam >= 0
+              ? `team ${game.winningTeam + 1} (${nameOf(game.winner)})`
+              : nameOf(game.winner)
+          }${game.status === GameStatus.GAME_WON_BY_TIMEOUT ? " on time" : ""}`;
     lines.push(`status: game over - ${result}`);
     if (game.notation) {
       lines.push(`replay: ${webOrigin}/replay/${game.notation}`);
@@ -152,6 +190,16 @@ export const MCP_TOOLS: McpToolDefinition[] = [
         winningSequenceLength: {
           type: "number",
           description: "2-boardSize, default 3",
+        },
+        winningSequenceCount: {
+          type: "number",
+          description:
+            "Sequences required to win (default 1). E.g. 4 sequences of length 2 on a 12x12 board.",
+        },
+        teamCount: {
+          type: "number",
+          description:
+            "Split players into equal teams (default 0 = none). Must divide playerCount; team of a seat is seat % teamCount, and sequences may mix teammates' marks.",
         },
         timePerPlayer: {
           type: "number",

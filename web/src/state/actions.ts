@@ -31,7 +31,9 @@ export const startGame = (
   playerCount: number,
   winningSequenceLength: number,
   timePerPlayer?: number,
-  incrementPerPlayer?: number
+  incrementPerPlayer?: number,
+  winningSequenceCount?: number,
+  teamCount?: number
 ) => {
   const startGameAction: StartGameMessage = {
     type: MessageTypes.START_GAME,
@@ -39,10 +41,16 @@ export const startGame = (
     boardSize,
     playerCount,
     winningSequenceLength,
+    winningSequenceCount,
+    teamCount,
     timePerPlayer,
     incrementPerPlayer,
   };
   dispatch(startGameAction);
+};
+
+export const listMyGames = () => {
+  dispatch({ type: MessageTypes.LIST_MY_GAMES });
 };
 
 export const claimHandle = (handle: string) => {

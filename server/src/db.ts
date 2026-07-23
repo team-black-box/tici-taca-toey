@@ -12,8 +12,29 @@ const DEFAULT_RATING = 1000;
 // substance (>= 4 moves), else they are unrated.
 const RATED_ABANDON_MIN_MOVES = 4;
 
+// The headline rating: every game settles into this pool with the K-factor
+// scaled by the game's difficulty, so hard configurations move the global
+// number more. Per-configuration pools settle alongside it, unscaled.
+export const GLOBAL_POOL = "global";
+
+// How much a game should move the global rating, relative to the classic
+// 3x3 / one sequence of 3 / two players / untimed baseline of 1.0. Each
+// term reflects something that genuinely makes winning harder; the clamp
+// keeps any single exotic configuration from dominating a rating.
+export const difficultyOf = (game: Game): number => {
+  const difficulty =
+    1 +
+    (game.winningSequenceLength - 3) * 0.35 + // longer runs are harder
+    (game.winningSequenceCount - 1) * 0.5 + // each extra required sequence
+    (game.playerCount - 2) * 0.25 + // more players, more chaos
+    (game.teamCount > 0 ? 0.25 : 0) + // coordination without communication
+    (game.timed ? 0.25 : 0); // clock pressure
+  return Math.min(Math.max(difficulty, 0.5), 3);
+};
+
+// No playerId here on purpose: public rows carry handles only, so nobody
+// can lift ids off the leaderboard (they matter only in-game).
 export interface LeaderboardRow {
-  playerId: string;
   handle: string;
   isRobot: boolean;
   rating: number;
@@ -135,6 +156,8 @@ export class GameDb {
 
   static poolOf(game: Game): string {
     return `${game.boardSize}x${game.winningSequenceLength}x${game.playerCount}${
+      game.winningSequenceCount > 1 ? `-s${game.winningSequenceCount}` : ""
+    }${game.teamCount > 0 ? `-t${game.teamCount}` : ""}${
       game.timed ? "-timed" : ""
     }`;
   }
@@ -178,11 +201,11 @@ export class GameDb {
     return row?.rating ?? DEFAULT_RATING;
   }
 
-  #applyResult(pool: string, a: string, b: string, scoreA: number) {
+  #applyResult(pool: string, a: string, b: string, scoreA: number, k = ELO_K) {
     const ratingA = this.#getRating(a, pool);
     const ratingB = this.#getRating(b, pool);
     const expectedA = 1 / (1 + 10 ** ((ratingB - ratingA) / 400));
-    const delta = ELO_K * (scoreA - expectedA);
+    const delta = k * (scoreA - expectedA);
     const bump = this.#db.query(
       `INSERT INTO ratings (player_id, pool, rating, games, wins)
        VALUES (?, ?, ?, 1, ?)
@@ -197,8 +220,21 @@ export class GameDb {
     bump.run(b, pool, DEFAULT_RATING - delta, winB, -delta, winB);
   }
 
+  // Apply one pairwise result to the configuration pool (unscaled) and the
+  // global pool (K scaled by difficulty).
+  #applyEverywhere(game: Game, a: string, b: string, scoreA: number) {
+    this.#applyResult(GameDb.poolOf(game), a, b, scoreA);
+    this.#applyResult(GLOBAL_POOL, a, b, scoreA, ELO_K * difficultyOf(game));
+  }
+
+  // In a team game the winners are the whole winning team; teamless games
+  // make each seat its own team, so this covers both.
+  #teamOf(game: Game, playerId: string): number {
+    const seat = game.players.indexOf(playerId);
+    return game.teamCount > 0 ? seat % game.teamCount : seat;
+  }
+
   #settleRatings(game: Game) {
-    const pool = GameDb.poolOf(game);
     const moveCount = game.moveLog.length / 2;
     if (game.status === GameStatus.GAME_ABANDONED) {
       // Rated only with substance; the abandoner is whoever is absent from
@@ -215,33 +251,49 @@ export class GameDb {
       game.status === GameStatus.GAME_WON ||
       game.status === GameStatus.GAME_WON_BY_TIMEOUT
     ) {
-      game.players.forEach((playerId) => {
-        if (playerId !== game.winner) {
-          this.#applyResult(pool, game.winner, playerId, 1);
-        }
+      const winningTeam = this.#teamOf(game, game.winner);
+      const winners = game.players.filter(
+        (playerId) => this.#teamOf(game, playerId) === winningTeam
+      );
+      const losers = game.players.filter(
+        (playerId) => this.#teamOf(game, playerId) !== winningTeam
+      );
+      winners.forEach((winner) => {
+        losers.forEach((loser) => {
+          this.#applyEverywhere(game, winner, loser, 1);
+        });
       });
       return;
     }
     if (game.status === GameStatus.GAME_ENDS_IN_A_DRAW) {
+      // Draws settle across opposing sides only - teammates never rate
+      // against each other.
       for (let i = 0; i < game.players.length; i++) {
         for (let j = i + 1; j < game.players.length; j++) {
-          this.#applyResult(pool, game.players[i], game.players[j], 0.5);
+          if (
+            this.#teamOf(game, game.players[i]) !==
+            this.#teamOf(game, game.players[j])
+          ) {
+            this.#applyEverywhere(game, game.players[i], game.players[j], 0.5);
+          }
         }
       }
     }
   }
 
-  // Attribute an abandonment: the leaver loses to every remaining player
-  // when the game had substance.
+  // Attribute an abandonment: the leaver loses to every opponent (never to
+  // a teammate) when the game had substance.
   recordAbandonment(game: Game, abandonerId: string) {
     const moveCount = game.moveLog.replaceAll("--", "").length / 2;
     if (moveCount < RATED_ABANDON_MIN_MOVES) {
       return;
     }
-    const pool = GameDb.poolOf(game);
     game.players.forEach((playerId) => {
-      if (playerId !== abandonerId) {
-        this.#applyResult(pool, playerId, abandonerId, 1);
+      if (
+        playerId !== abandonerId &&
+        this.#teamOf(game, playerId) !== this.#teamOf(game, abandonerId)
+      ) {
+        this.#applyEverywhere(game, playerId, abandonerId, 1);
       }
     });
   }
@@ -249,14 +301,13 @@ export class GameDb {
   leaderboard(pool: string, limit: number = 25): LeaderboardRow[] {
     const rows = this.#db
       .query(
-        `SELECT r.player_id, p.handle, p.is_robot, r.rating, r.games, r.wins
+        `SELECT p.handle, p.is_robot, r.rating, r.games, r.wins
          FROM ratings r JOIN players p ON p.player_id = r.player_id
          WHERE r.pool = ?
          ORDER BY r.rating DESC
          LIMIT ?`
       )
       .all(pool, Math.min(Math.max(limit, 1), 100)) as Array<{
-      player_id: string;
       handle: string;
       is_robot: number;
       rating: number;
@@ -264,7 +315,6 @@ export class GameDb {
       wins: number;
     }>;
     return rows.map((row) => ({
-      playerId: row.player_id,
       handle: row.handle || "anonymous",
       isRobot: row.is_robot === 1,
       rating: Math.round(row.rating),

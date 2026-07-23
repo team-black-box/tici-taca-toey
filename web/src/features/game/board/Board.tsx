@@ -4,7 +4,7 @@ import { getActiveGame } from "../../../state/games";
 import { getCurrentPlayerId } from "../../../state/currentPlayer";
 import { makeMove } from "../../../state/actions";
 import { Game, GameStatus } from "../../../common/model";
-import { getSymbol, EMPTY_CELL } from "../../../common/symbol";
+import { getSideSymbol, EMPTY_CELL } from "../../../common/symbol";
 
 interface CellProps {
   playerId: string;
@@ -21,7 +21,7 @@ const Cell = ({
   currentPlayer,
   game,
 }: CellProps) => {
-  const playerSymbol = getSymbol(playerId, game.players);
+  const playerSymbol = getSideSymbol(playerId, game.players, game.teamCount);
 
   const cellOpen =
     game.status === GameStatus.GAME_IN_PROGRESS &&

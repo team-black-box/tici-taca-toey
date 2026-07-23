@@ -111,6 +111,8 @@ describe("LIST_GAMES lobby", () => {
       name: "Open Table",
       boardSize: 5,
       winningSequenceLength: 5,
+      winningSequenceCount: 1,
+      teamCount: 0,
       playerCount: 3,
       humanCount: 1,
       robotCount: 1,

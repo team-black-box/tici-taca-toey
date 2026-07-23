@@ -370,12 +370,17 @@ describe("database: identities, handles, archive, elo", () => {
     expect(archived?.winnerSeat).toBe(0);
     expect(archived?.players.length).toBe(2);
 
+    // Public rows carry handles only - never playerIds.
     const board = db.leaderboard("3x3x2");
-    expect(board[0].playerId).toBe("alice");
-    expect(board[0].rating).toBeGreaterThan(1000);
-    expect(board[1].playerId).toBe("bob");
+    expect(board.length).toBe(2);
+    expect(Object.keys(board[0])).not.toContain("playerId");
+    expect(board[0].rating).toBeGreaterThan(1000); // the winner leads
     expect(board[1].rating).toBeLessThan(1000);
-    expect(db.pools()).toEqual(["3x3x2"]);
+    // Every game also settles the difficulty-weighted global pool.
+    expect(db.pools()).toEqual(["3x3x2", "global"]);
+    const global = db.leaderboard("global");
+    expect(global.length).toBe(2);
+    expect(global[0].rating).toBeGreaterThan(1000);
 
     const myGames = db.playerGames("alice");
     expect(myGames.length).toBe(1);

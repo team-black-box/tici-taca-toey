@@ -78,6 +78,10 @@ export interface StartGameMessage {
   boardSize: number;
   playerCount: number;
   winningSequenceLength?: number;
+  // Variant: sequences required to win (default 1, the classic game).
+  winningSequenceCount?: number;
+  // Variant: equal teams (default 0 = none); playerCount % teamCount == 0.
+  teamCount?: number;
   connection: PlayerConnection;
   playerId: string;
   gameId: string;
@@ -146,6 +150,15 @@ export interface ListGamesMessage {
   gameId?: string;
 }
 
+// Personal archive over the socket: the server already knows who is
+// asking, so no player id ever appears in a URL.
+export interface ListMyGamesMessage {
+  type: MessageTypes.LIST_MY_GAMES;
+  connection?: PlayerConnection;
+  playerId: string;
+  gameId?: string;
+}
+
 export interface PlayerTimeoutMessage {
   type: MessageTypes.PLAYER_TIMEOUT;
   playerId: string;
@@ -165,6 +178,7 @@ export type Message =
   | PlayerAbandonMessage
   | UpdateTimeMessage
   | ListGamesMessage
+  | ListMyGamesMessage
   | ClaimHandleMessage
   | PlayerTimeoutMessage;
 
@@ -180,9 +194,18 @@ export interface CalculateWinnerInputType {
   winningSequenceLength: number;
   lastTurnPlayerId: string;
   lastTurnPosition: import("../../shared/model").WinningSequence;
+  // Variant fields; omitted = classic game (1 sequence, no teams). The
+  // classic case keeps the O(4 * winLen) last-move scan; variants use the
+  // shared full-board counter (shared/rules.ts).
+  winningSequenceCount?: number;
+  teamCount?: number;
+  // Seat order, required for team games to map marks to teams.
+  players?: string[];
 }
 
 export interface CalculateWinnerOutputType {
   winner: string;
   winningSequence: import("../../shared/model").WinningSequence[];
+  // Winning team index in team games, else -1.
+  winningTeam: number;
 }

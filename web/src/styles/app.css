@@ -781,3 +781,12 @@ select:focus-visible {
 .footer-link:hover {
   color: var(--accent);
 }
+
+/* multi-sequence progress counters in the status row */
+.seq-progress {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

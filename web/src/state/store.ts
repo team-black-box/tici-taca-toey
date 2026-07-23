@@ -18,6 +18,7 @@ import currentPlayerReducer, { CurrentPlayerState } from "./currentPlayer";
 import gamesReducer from "./games";
 import playersReducer from "./players";
 import lobbyReducer, { LobbyState } from "./lobby";
+import historyReducer, { HistoryState } from "./history";
 import feedbackReducer, {
   ERROR_COPY,
   FeedbackEvent,
@@ -29,6 +30,7 @@ export interface AppState {
   games: GameStore;
   players: StaticPlayerStore;
   lobby: LobbyState;
+  history: HistoryState;
   feedback: FeedbackEvent[];
 }
 
@@ -39,6 +41,7 @@ let state: AppState = {
   games: gamesReducer(undefined, INIT_ACTION),
   players: playersReducer(undefined, INIT_ACTION),
   lobby: lobbyReducer(undefined, INIT_ACTION),
+  history: historyReducer(undefined, INIT_ACTION),
   feedback: feedbackReducer(undefined, INIT_ACTION),
 };
 
@@ -59,6 +62,7 @@ const reduce = (action: Response | { type: string }) => {
     games: gamesReducer(state.games, action as Response),
     players: playersReducer(state.players, action as Response),
     lobby: lobbyReducer(state.lobby, action as Response),
+    history: historyReducer(state.history, action as Response),
     feedback: feedbackReducer(state.feedback, action as { type: string }),
   };
   listeners.forEach((listener) => listener());
@@ -140,6 +144,16 @@ initSocket({
     }
     if (response.type === MessageTypes.GAME_RESUMED) {
       freshGames.add((response as { game: { gameId: string } }).game.gameId);
+    }
+    // History changes exactly when a game of mine ends (a win/draw arrives
+    // as GAME_COMPLETE, an abandon as PLAYER_DISCONNECT); registration
+    // fetches the initial list (the server answers empty without a db).
+    if (
+      response.type === MessageTypes.REGISTER_PLAYER ||
+      response.type === MessageTypes.GAME_COMPLETE ||
+      response.type === MessageTypes.PLAYER_DISCONNECT
+    ) {
+      sendToServer({ type: MessageTypes.LIST_MY_GAMES });
     }
     if (response.type === MessageTypes.START_GAME && robotPending) {
       robotPending = false;

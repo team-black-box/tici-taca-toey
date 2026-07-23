@@ -22,6 +22,7 @@ import {
   PlayerConnection,
 } from "./model";
 import { Timer } from "./timer";
+import { countSequences, ownerOfSeat, teamOfSeat } from "./rules";
 import { encodeCell, encodeClock, encodeGame, SKIP_CLOCK_TOKEN, SKIP_TOKEN } from "./notation";
 import { GameDb, HANDLE_PATTERN } from "./db";
 import { appendFile, mkdir } from "node:fs/promises";
@@ -44,6 +45,7 @@ const MAX_TIME_PER_PLAYER = 60 * 60 * 1000;
 const MAX_INCREMENT_PER_PLAYER = 60 * 1000;
 const DEFAULT_INCREMENT_PER_PLAYER = 1000;
 const MAX_ROBOT_CONCURRENT_GAMES = 100;
+const MAX_WINNING_SEQUENCE_COUNT = 10;
 const COMPLETED_GAME_TTL = 10 * 60 * 1000;
 const STALE_GAME_TTL = 24 * 60 * 60 * 1000;
 // A game nobody has touched for this long is dead: the mover walked away
@@ -279,6 +281,11 @@ class TiciTacaToeyGameEngine implements GameEngine {
         case MessageTypes.PLAYER_ABANDON:
         case MessageTypes.LIST_GAMES:
           break;
+        case MessageTypes.LIST_MY_GAMES:
+          // Valid even without a database - clients auto-refresh history in
+          // the background, and a background refresh must never toast an
+          // error. The reply is simply empty.
+          break;
         case MessageTypes.CLAIM_HANDLE: {
           if (!this.#db) {
             return fail(ErrorCodes.HANDLES_UNAVAILABLE);
@@ -356,6 +363,38 @@ class TiciTacaToeyGameEngine implements GameEngine {
             return fail(
               ErrorCodes.WIN_SEQ_LENGTH_MUST_BE_LESS_THAN_OR_EQUAL_TO_BOARD_SIZE
             );
+          }
+          if (
+            message.teamCount !== undefined &&
+            message.teamCount !== 0 &&
+            (!Number.isInteger(message.teamCount) ||
+              message.teamCount < 2 ||
+              message.playerCount % message.teamCount !== 0 ||
+              message.teamCount > message.playerCount / 2)
+          ) {
+            return fail(ErrorCodes.INVALID_TEAM_CONFIGURATION);
+          }
+          if (message.winningSequenceCount !== undefined) {
+            // Each side (team, or player when teamless) must have enough
+            // cells on the board to physically place the required
+            // sequences.
+            const winLength =
+              message.winningSequenceLength ?? message.boardSize;
+            const sides =
+              message.teamCount && message.teamCount > 0
+                ? message.teamCount
+                : message.playerCount;
+            const sideCells = Math.floor(
+              (message.boardSize * message.boardSize) / sides
+            );
+            if (
+              !Number.isInteger(message.winningSequenceCount) ||
+              message.winningSequenceCount < 1 ||
+              message.winningSequenceCount > MAX_WINNING_SEQUENCE_COUNT ||
+              message.winningSequenceCount * winLength > sideCells
+            ) {
+              return fail(ErrorCodes.INVALID_WINNING_SEQUENCE_COUNT);
+            }
           }
           if (
             message.timePerPlayer !== undefined &&
@@ -531,6 +570,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
       }
       case MessageTypes.NOTIFY_TIME:
       case MessageTypes.LIST_GAMES:
+      case MessageTypes.LIST_MY_GAMES:
         break;
       case MessageTypes.PLAYER_DISCONNECT: {
         // Start the resume grace window instead of abandoning immediately.
@@ -616,6 +656,9 @@ class TiciTacaToeyGameEngine implements GameEngine {
           winningSequenceLength: message.winningSequenceLength
             ? message.winningSequenceLength
             : message.boardSize,
+          winningSequenceCount: message.winningSequenceCount ?? 1,
+          teamCount: message.teamCount ?? 0,
+          winningTeam: -1,
           players: [message.playerId],
           spectators: [],
           winner: "",
@@ -691,12 +734,29 @@ class TiciTacaToeyGameEngine implements GameEngine {
           (player) => game.timers[player].timeLeft > 0
         );
 
-        if (playersWithTimeLeft.length === 1) {
+        // The game ends when everyone still on the clock is on one side.
+        // Teamless games make each seat its own side, so this is the
+        // classic "one player left" rule; in team games a whole team must
+        // run out before the other team wins on time.
+        const sidesWithTimeLeft = new Set(
+          playersWithTimeLeft.map((player) =>
+            teamOfSeat(game.players.indexOf(player), game.teamCount)
+          )
+        );
+
+        if (playersWithTimeLeft.length > 0 && sidesWithTimeLeft.size === 1) {
           stopAllTimers(game);
           const completed: Game = {
             ...game,
             status: GameStatus.GAME_WON_BY_TIMEOUT,
             winner: playersWithTimeLeft[0],
+            winningTeam:
+              game.teamCount > 0
+                ? teamOfSeat(
+                    game.players.indexOf(playersWithTimeLeft[0]),
+                    game.teamCount
+                  )
+                : -1,
             turn: "",
             completedAt: Date.now(),
           };
@@ -752,6 +812,9 @@ class TiciTacaToeyGameEngine implements GameEngine {
         const winner = calculateWinner({
           positions,
           winningSequenceLength: game.winningSequenceLength,
+          winningSequenceCount: game.winningSequenceCount,
+          teamCount: game.teamCount,
+          players: game.players,
           lastTurnPlayerId: message.playerId,
           lastTurnPosition: {
             x: message.coordinateX,
@@ -770,6 +833,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
                 clockLog,
                 status: GameStatus.GAME_WON,
                 winner: winner.winner,
+                winningTeam: winner.winningTeam,
                 turn: "",
                 winningSequence: winner.winningSequence,
                 completedAt: Date.now(),
@@ -954,6 +1018,8 @@ class TiciTacaToeyGameEngine implements GameEngine {
           name: game.name,
           boardSize: game.boardSize,
           winningSequenceLength: game.winningSequenceLength,
+          winningSequenceCount: game.winningSequenceCount,
+          teamCount: game.teamCount,
           playerCount: game.playerCount,
           humanCount: game.players.length - robotCount,
           robotCount,
@@ -1096,6 +1162,45 @@ class TiciTacaToeyGameEngine implements GameEngine {
             robots: this.listRobots(),
           };
           safeSend(message.connection, JSON.stringify(response));
+        }
+        break;
+      }
+      case MessageTypes.LIST_MY_GAMES: {
+        // Personal archive, requester-only. Handles only - playerIds are
+        // never put on the wire for other players.
+        if (!message.connection || !message.playerId) {
+          break;
+        }
+        if (!this.#db) {
+          safeSend(
+            message.connection,
+            JSON.stringify({ type: MessageTypes.MY_GAMES, games: [] })
+          );
+          break;
+        }
+        try {
+          const response: Response = {
+            type: MessageTypes.MY_GAMES,
+            games: this.#db.playerGames(message.playerId, 25).map((game) => ({
+              gameId: game.gameId,
+              ttn: game.ttn,
+              status: game.status as GameStatus,
+              winnerSeat: game.winnerSeat,
+              mySeat:
+                game.players.find(
+                  (player) => player.playerId === message.playerId
+                )?.seat ?? -1,
+              startedAt: game.startedAt,
+              completedAt: game.completedAt,
+              players: game.players.map((player) => ({
+                seat: player.seat,
+                handle: player.handle || "anonymous",
+              })),
+            })),
+          };
+          safeSend(message.connection, JSON.stringify(response));
+        } catch (error) {
+          console.error("History fetch failed", error);
         }
         break;
       }
@@ -1249,38 +1354,67 @@ export const calculateWinner = (
   const { positions, winningSequenceLength, lastTurnPlayerId } = input;
   const { x, y } = input.lastTurnPosition;
   const size = positions.length;
+  const winningSequenceCount = input.winningSequenceCount ?? 1;
+  const teamCount = input.teamCount ?? 0;
 
   if (positions[x]?.[y] !== lastTurnPlayerId) {
     return null;
   }
 
-  for (const [dx, dy] of DIRECTIONS) {
-    const winningSequence: WinningSequence[] = [{ x, y }];
-    for (const sign of [1, -1] as const) {
-      let nextX = x + dx * sign;
-      let nextY = y + dy * sign;
-      while (
-        nextX >= 0 &&
-        nextX < size &&
-        nextY >= 0 &&
-        nextY < size &&
-        positions[nextX][nextY] === lastTurnPlayerId
-      ) {
-        if (sign === 1) {
-          winningSequence.push({ x: nextX, y: nextY });
-        } else {
-          winningSequence.unshift({ x: nextX, y: nextY });
+  // Classic games (one sequence, no teams) keep the O(4 * winLen) fast
+  // path - a winning line must pass through the last move.
+  if (winningSequenceCount === 1 && teamCount <= 0) {
+    for (const [dx, dy] of DIRECTIONS) {
+      const winningSequence: WinningSequence[] = [{ x, y }];
+      for (const sign of [1, -1] as const) {
+        let nextX = x + dx * sign;
+        let nextY = y + dy * sign;
+        while (
+          nextX >= 0 &&
+          nextX < size &&
+          nextY >= 0 &&
+          nextY < size &&
+          positions[nextX][nextY] === lastTurnPlayerId
+        ) {
+          if (sign === 1) {
+            winningSequence.push({ x: nextX, y: nextY });
+          } else {
+            winningSequence.unshift({ x: nextX, y: nextY });
+          }
+          nextX += dx * sign;
+          nextY += dy * sign;
         }
-        nextX += dx * sign;
-        nextY += dy * sign;
+      }
+      if (winningSequence.length >= winningSequenceLength) {
+        return {
+          winner: lastTurnPlayerId,
+          winningSequence,
+          winningTeam: -1,
+        };
       }
     }
-    if (winningSequence.length >= winningSequenceLength) {
-      return {
-        winner: lastTurnPlayerId,
-        winningSequence,
-      };
-    }
+    return null;
+  }
+
+  // Variant games count sequences across the whole board for the mover's
+  // side (their team's marks, or just their own). See shared/rules.ts for
+  // the counting rules.
+  const players = input.players ?? [];
+  const seat = players.indexOf(lastTurnPlayerId);
+  if (seat < 0) {
+    return null;
+  }
+  const scan = countSequences(
+    positions,
+    winningSequenceLength,
+    ownerOfSeat(players, seat, teamCount)
+  );
+  if (scan.count >= winningSequenceCount) {
+    return {
+      winner: lastTurnPlayerId,
+      winningSequence: scan.cells,
+      winningTeam: teamCount > 0 ? teamOfSeat(seat, teamCount) : -1,
+    };
   }
   return null;
 };

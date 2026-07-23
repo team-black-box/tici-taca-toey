@@ -19,7 +19,11 @@ deep links, and store prep.
   the wrong trade for a teaching app. Reads are async, so identity loads
   once at bootstrap in `state.ts` before the first connect.
 - `src/state.ts` condenses the web client's store/socket/actions - the web
-  app is the behavioral source of truth; keep them in sync.
+  app is the behavioral source of truth; keep them in sync. That includes
+  the `history` slice (finished games from `MY_GAMES`), which feeds the
+  lobby's history list and the `Replay` screen.
+- `src/rules.ts` shims `shared/rules.ts` so the board, the team grouping,
+  and the sequence counters use the same rules the server scores with.
 - The game surface is always the terminal look; only app-level chrome may
   be platform-fancy. Palette mirrors `web/src/styles/app.css` variables
   via `src/theme.ts`.
