@@ -13,9 +13,15 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import {
+  MCP_INSTRUCTIONS,
+  MCP_PROTOCOL_VERSION,
+  MCP_SERVER_INFO,
+  MCP_TOOLS,
+} from "../shared/mcp";
 
 const SERVER_URL = process.env.TTT_SERVER_URL ?? "ws://localhost:8080";
-const PROTOCOL_VERSION = "2025-06-18";
+const PROTOCOL_VERSION = MCP_PROTOCOL_VERSION;
 const COMMAND_TIMEOUT_MS = 8_000;
 const DEFAULT_WAIT_SECONDS = 60;
 const MAX_WAIT_SECONDS = 300;
@@ -539,8 +545,6 @@ const TOOLS: Record<string, Tool> = {
 
 // --- MCP over stdio (newline-delimited JSON-RPC 2.0) -----------------------
 
-const INSTRUCTIONS = `You are connected to tici-taca-toey, a multiplayer tic-tac-toe server (boards 2-12, 2-10 players, optional chess clocks). To play: start_game (or list_games + join_game), request_robot for an opponent, then loop wait_for_turn -> make_move until the game ends. Coordinates are zero-based: x is the row, y is the column. claim_handle once to get on the leaderboard.`;
-
 const reply = (id: unknown, result: unknown) => {
   console.log(JSON.stringify({ jsonrpc: "2.0", id, result }));
 };
@@ -562,12 +566,8 @@ const handleRequest = async (request: Record<string, unknown>) => {
         ? requested
         : PROTOCOL_VERSION,
       capabilities: { tools: {} },
-      serverInfo: {
-        name: "tici-taca-toey",
-        title: "Tici Taca Toey",
-        version: "1.0.0",
-      },
-      instructions: INSTRUCTIONS,
+      serverInfo: MCP_SERVER_INFO,
+      instructions: MCP_INSTRUCTIONS,
     });
     return;
   }
@@ -576,13 +576,9 @@ const handleRequest = async (request: Record<string, unknown>) => {
     return;
   }
   if (method === "tools/list") {
-    reply(id, {
-      tools: Object.entries(TOOLS).map(([name, tool]) => ({
-        name,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-      })),
-    });
+    // Advertised from shared/mcp.ts so this transport and the in-server
+    // HTTP one at server/src/mcp.ts always show agents the same tools.
+    reply(id, { tools: MCP_TOOLS });
     return;
   }
   if (method === "tools/call") {

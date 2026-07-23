@@ -23,6 +23,11 @@ platform primitives.
 - `src/notation.ts` - TTN encode/decode (see Notation).
 - `src/static.ts` - same-origin serving of the built web app
   (`TTT_WEB_DIR`, production only; see Deployment).
+- `src/mcp.ts` - MCP over streamable HTTP at `/mcp`, so AI agents connect
+  with a URL and no local install. A session is an in-process player (the
+  residents.ts trick), keyed by the `Mcp-Session-Id` header; an
+  `X-TTT-Player-Key` header gives an agent a durable identity. Idle
+  sessions are swept alongside games and end like a closing socket.
 - `test/` - engine, winner (fuzz oracle), timer, notation (round-trip fuzz),
   resume, robot, static-serving, sweep/capacity, and performance-floor
   tests.

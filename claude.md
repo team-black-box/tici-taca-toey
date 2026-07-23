@@ -43,10 +43,9 @@ decades.
 - `playground/` is the learning lab (see `playground/README.md`): trains a
   behavior-cloned policy from TTN records + engine self-play and seats it
   as the `cloney` SDK robot. Zero dependencies, teaching-first.
-- `mcp/` is the MCP play service (see `mcp/README.md`): a zero-dependency
-  Model Context Protocol server over stdio that lets AI agents play like
-  humans and robots do (hand-rolled JSON-RPC, bridges to the websocket
-  protocol).
+- `mcp/` is the stdio MCP transport (see `mcp/README.md`). The game server
+  also speaks MCP over HTTP at `/mcp` (`server/src/mcp.ts`), so agents can
+  connect with just a URL. Both serve the one contract in `shared/mcp.ts`.
 - `mobile/` is the bare React Native app (package `com.ticitacatoey`, see
   `mobile/README.md`). Approved deps only: react, react-native, React
   Navigation (+screens/safe-area-context), and async-storage - ask before

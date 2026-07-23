@@ -30,6 +30,8 @@ export interface GameEngine {
   players: PlayerStore;
   robots: { [key: string]: import("../../shared/model").Robot };
   play: (message: Message, notify?: boolean) => Promise<GameEngine>;
+  // Maps a secret playerKey to a stable playerId; see the engine.
+  resolvePlayerKey: (playerKey: unknown, fallbackPlayerId: string) => string;
   validate: (message: Message) => Promise<Message>;
   transition: (message: Message) => void;
   notify: (message: Message) => void;

@@ -11,6 +11,7 @@ ticitacatoey.com ──> Caddy (:443, auto TLS) ──> bun server (127.0.0.1:80
                                                   ├─ current/web/dist (static, SPA fallback)
                                                   ├─ /ws websocket (game protocol)
                                                   ├─ /health /leaderboard /games /players /dataset
+                                                  ├─ /mcp (agents, streamable HTTP)
                                                   └─ data/  (sqlite + games.ttn)
 ```
 
@@ -284,8 +285,9 @@ matters: it is the only thing that will tell you.
 
 ## Monitoring and backups
 
-- `GET /health` returns player/game/robot counts. Point any free uptime
-  pinger at `https://ticitacatoey.com/health`.
+- `GET /health` returns player/game/robot/connection/MCP-session counts.
+  An uptime pinger watches it; the public status page is
+  https://stats.uptimerobot.com/Uta5Sjd5ef
 - `journalctl -u tici-taca-toey -f` tails the server log;
   `journalctl -u tici-taca-toey-deploy -f` shows deploy activity, and
   `journalctl -u tici-taca-toey-watchdog -f` shows liveness checks.

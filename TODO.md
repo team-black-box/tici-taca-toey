@@ -28,5 +28,16 @@ exquisite taste in design.
 
 ## Completed
 
-Nothing yet in the open-source era - the pre-launch history is in
+- MCP over streamable HTTP (2026-07-23): the game server serves `/mcp`
+  itself, so an agent connects with a URL and no local install. A session
+  is an in-process player; `shared/mcp.ts` holds the one tool contract
+  both transports serve. 6 e2e tests drive the endpoint like an agent,
+  including a full game against a resident robot.
+- Deep-link blank page and UI fixes (2026-07-23): absolute asset paths
+  (v1.0.2), logo returns home, no spurious error when a game ends,
+  centred sync QR, crop-safe OG image (v1.0.3).
+- Liveness watchdog (2026-07-23): restarts the unit after two consecutive
+  /health misses, closing the wedged-but-running gap (v1.0.1).
+
+Pre-launch history is in
 [`tasks/archived/todo.md`](./tasks/archived/todo.md).

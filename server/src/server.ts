@@ -2,6 +2,7 @@ import TiciTacaToeyGameEngine from "./TiciTacaToeyGameEngine";
 import { GameDb } from "./db";
 import { startResidents } from "./residents";
 import { createStaticHandler } from "./static";
+import { handleMcpRequest, mcpSessionCount, sweepMcpSessions } from "./mcp";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import {
@@ -153,6 +154,11 @@ const server = Bun.serve<SocketData>({
         },
       });
     }
+    // MCP over streamable HTTP: agents connect with just this URL, no
+    // local install. See shared/mcp.ts for the tool contract.
+    if (url.pathname === "/mcp") {
+      return handleMcpRequest(request, engine, url.origin);
+    }
     if (url.pathname === "/health") {
       return json({
         status: "ok",
@@ -162,6 +168,7 @@ const server = Bun.serve<SocketData>({
         // Headroom against the caps, so the pinger shows when to resize.
         connections: openConnections,
         maxConnections: MAX_CONNECTIONS,
+        mcpSessions: mcpSessionCount(),
       });
     }
     if (engine.db) {
@@ -337,6 +344,7 @@ const server = Bun.serve<SocketData>({
 setInterval(() => {
   try {
     engine.sweep();
+    sweepMcpSessions(engine);
   } catch (error) {
     console.error("Sweep failed", error);
   }

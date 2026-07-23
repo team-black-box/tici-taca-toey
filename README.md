@@ -1,4 +1,4 @@
-<img src="./web/public/banner.png" alt="Tici Taca Toey" width="545">
+<img src="./web/public/og.png" alt="Tici Taca Toey" width="640">
 
 A multiplayer game of tic tac toe over websockets, with configurable board
 sizes (2-12), player counts (2-10), winning sequence lengths, spectators, and
@@ -22,7 +22,8 @@ Made with ♥ in Bengaluru, India.
 - [`playground/`](./playground/) - the learning lab: train a policy from
   recorded TTN games + self-play, then seat it as the `cloney` robot.
 - [`mcp/`](./mcp/) - the MCP play service: AI agents connect over the
-  Model Context Protocol and play like everyone else.
+  Model Context Protocol and play like everyone else. Point any MCP client
+  at `https://ticitacatoey.com/mcp` - no install.
 - [`mobile/`](./mobile/) - bare React Native app (`com.ticitacatoey`),
   runtime deps `react` + `react-native` only.
 
@@ -49,6 +50,10 @@ bun robots/greedy.ts
 
 Open http://localhost:3000, enter a handle, start a game, and press
 "+ robot" - or share the invite link (or QR code) with a friend.
+
+## Status
+
+[Live status](https://stats.uptimerobot.com/Uta5Sjd5ef) · play at [ticitacatoey.com](https://ticitacatoey.com)
 
 ## Testing and Verification
 
