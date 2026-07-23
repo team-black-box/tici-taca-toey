@@ -19,7 +19,10 @@ import {
 } from "../state/currentPlayer";
 import { getActiveGameStatus } from "../state/games";
 import { joinGame, spectateGame } from "../state/actions";
-import { GameInteractionTypes, GameStatus } from "../common/model";
+import {
+  COMPLETED_GAME_STATUS,
+  GameInteractionTypes,
+} from "../common/model";
 import { HeartIcon } from "../common/icons";
 import { setPlayerKey } from "../state/identity";
 
@@ -79,10 +82,17 @@ export default function App() {
   useEffect(() => {
     if (isConnected && !isReplay && !isSync) {
       if (type && gameId) {
+        // A finished game is removed from `playing`, but the URL still
+        // points at it - so without the completed check this re-fires
+        // joinGame on a game we are still seated in and the server
+        // answers "you are already in this game" every time one ends.
+        const finished =
+          activeGameStatus !== undefined &&
+          COMPLETED_GAME_STATUS.includes(activeGameStatus);
         if (
           !currentlyPlayingGames.includes(gameId) &&
           !currentlySpectatingGames.includes(gameId) &&
-          activeGameStatus !== GameStatus.GAME_ABANDONED
+          !finished
         ) {
           switch (type) {
             case GameInteractionTypes.PLAY:

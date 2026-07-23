@@ -1,4 +1,4 @@
-# Tici Taca Toey
+<img src="./web/public/banner.png" alt="Tici Taca Toey" width="545">
 
 A multiplayer game of tic tac toe over websockets, with configurable board
 sizes (2-12), player counts (2-10), winning sequence lengths, spectators, and

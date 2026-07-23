@@ -1,11 +1,10 @@
 import Brand from "./brand/Brand";
 import Persona from "../player-persona/Player";
-import Logo from "../../common/logo";
 
+// The logo now lives inside Brand, so the whole lockup is one link home.
 const Header = () => {
   return (
     <div className="header">
-      <Logo className="logo" />
       <Brand />
       <Persona />
     </div>

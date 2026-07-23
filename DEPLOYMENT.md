@@ -1,8 +1,7 @@
 # Deployment
 
-**One Hetzner box, one origin, one process, releases installed by the box
-itself.** Decided 2026-07-23, replacing the Vercel two-project strategy (see
-the appendix for why). Caddy terminates TLS on 80/443 and proxies to the game
+**One box, one origin, one process, releases installed by the box itself.**
+Caddy terminates TLS on 80/443 and proxies to the game
 server on localhost; the game server serves the built web app, the websocket,
 and the HTTP API from the same origin; systemd keeps it alive; sqlite and the
 TTN corpus live on the box disk.
@@ -22,18 +21,15 @@ in no server URL at all. Dev is unchanged: `bun run dev` in `server/` and
 
 ## The box
 
-- **Hetzner Cloud CX23** (Cost-Optimized shared x86): 2 vCPU, **4 GB RAM**,
-  40 GB SSD, 20 TB traffic included, ~$6.49/mo. Named `tbb-prod-1` because
-  it will host other Team Black Box projects behind the same Caddy.
-- **Nuremberg (eu-central)**. Singapore had no CX23 availability; EU adds
-  ~80 ms for Indian players, which is imperceptible in a turn-based game
-  (the engine itself answers a move in ~15 ms).
-- Ubuntu 26.04 LTS, user `tici`, everything under `/opt/tici-taca-toey`.
-- **Hetzner Backups enabled** (+20%, ~$1.30/mo). This is not redundant with
-  `backup.sh`: that writes to `/var/backups` on the *same disk*, so a disk
-  failure would take the database and its backups together. The TTN corpus
-  is mirrored to GitHub daily, but player identities, handles, and Elo
-  ratings live only here.
+Any always-on VM with 2 vCPU and 4 GB RAM is enough - the reference
+deployment runs a shared-vCPU box with a 40 GB disk. Ubuntu LTS, an
+unprivileged `tici` user, everything under `/opt/tici-taca-toey`.
+
+Enable your provider's **daily disk backups**. They are not redundant with
+`backup.sh`: that writes to `/var/backups` on the *same disk*, so a disk
+failure would take the database and its backups together. The TTN corpus is
+mirrored to GitHub daily, but player identities, handles, and Elo ratings
+live only on the box.
 
 Deploy artifacts live in [`deploy/`](./deploy/) and are installed once:
 
@@ -100,10 +96,8 @@ deliberately outside the release directories.
 Publish a GitHub Release first — the box installs a release, so one must
 exist before provisioning.
 
-Create the server in the Hetzner console: **CX23 / Nuremberg /
-Ubuntu 26.04 / IPv4 + IPv6 / Backups on / your SSH key**, named
-`tbb-prod-1`. The IP is static for the life of the server, so DNS never has
-to change. Then attach a **Cloud Firewall** (inbound allow only):
+Create the server with **Ubuntu LTS, IPv4 + IPv6, daily backups, and your
+SSH key**. Then attach a firewall (inbound allow only):
 
 | Proto | Port | Source | Note |
 | --- | --- | --- | --- |
@@ -189,12 +183,11 @@ The stance: **the public internet sees ports 80/443 and nothing else.**
   — the correct answer is `Permission denied (publickey)` with no prompt.
 - **fail2ban** (`/etc/fail2ban/jail.local`, systemd backend): 3 strikes,
   1 hour ban. Mostly noise reduction; the key requirement does the work.
-- **Hetzner Cloud Firewall** (edge, filters before packets reach the box):
-  80/443 TCP inbound plus 22, nothing else. Hetzner firewalls are
-  default-deny, so anything not listed is already blocked. Pinning 22 to a
+- **Edge firewall** (filters before packets reach the box): 80/443 TCP
+  inbound plus 22, nothing else, default-deny. Pinning 22 to a
   single source IP is stronger still, but impractical on a dynamic home
   connection — and unnecessary given key-only auth.
-- **Break-glass:** Hetzner's browser console (noVNC) reaches the box
+- **Break-glass:** the provider's browser console reaches the box
   without going through port 22, so you cannot permanently lock yourself
   out. It needs a *local* password, so set one with `passwd root` during
   provisioning — this does not weaken SSH, because password auth is
@@ -256,7 +249,7 @@ well within one core. The caps above come from the memory budget: 4 GB less ~1 G
 Caddy, and headroom leaves ~3 GB, and sockets cost ~365 KB each. File
 descriptors are lifted to 65536 in the unit. `/health` reports live
 `connections` against `maxConnections`, so the uptime pinger tells you when
-to resize - and on Hetzner that is a reboot into a bigger plan, no
+to resize - on most hosts that is a reboot into a bigger plan, no
 migration.
 
 ## Staying alive
@@ -285,8 +278,8 @@ backoff, and the 60-second disconnect grace replays their games via
 `GAME_RESUMED`, so a restart mid-game costs a blink.
 
 **What is still uncovered:** the box itself. One machine means one point of
-failure - if Hetzner's host dies, nothing fails over. That is the accepted
-trade for a €6/month game server, and it is why the uptime pinger below
+failure - if the host dies, nothing fails over. That is the accepted trade
+for a single small game server, and it is why the uptime pinger below
 matters: it is the only thing that will tell you.
 
 ## Monitoring and backups
@@ -299,11 +292,9 @@ matters: it is the only thing that will tell you.
 - Nightly [`deploy/backup.sh`](./deploy/backup.sh): consistent
   `sqlite3 .backup` snapshot (safe under WAL) + `games.ttn` copy into
   `/var/backups/tici-taca-toey`, 14-day retention.
-- **Hetzner Backups** (enabled at creation) are the off-box copy: daily
-  whole-disk snapshots, restorable to a new server. `backup.sh` covers
-  fast local restores; Hetzner Backups cover losing the disk itself.
-- No budget alert needed - Hetzner bills a flat monthly amount, so cost
-  cannot drift the way metered clouds do.
+- Provider disk backups are the off-box copy: daily whole-disk snapshots,
+  restorable to a new server. `backup.sh` covers fast local restores;
+  disk snapshots cover losing the disk itself.
 
 **On pruning sqlite:** don't delete rows from `games`/`game_players` after
 the daily dataset mirror. `data/games.ttn` is a deliberately anonymous
@@ -343,30 +334,12 @@ exist — see `tasks/mobile-device-polish.md`).
 the hyperscalers. IPv6 and Caddy's certificates are free. Flat monthly
 pricing, no lock-in, cancel any time.
 
-## Appendix: providers evaluated, and the Vercel chapter
+## Why not serverless
 
-**Vercel (2026-07-18, retired 2026-07-19).** Ran as two projects
-(`tici-taca-toey-web` static + `tici-taca-toey-server` container on Fluid)
-with a `dev` custom environment. It proved the stack end to end and taught
-the deciding lesson: the engine keeps live games **in memory in one
-process**, and Vercel auto-scales instances — when more than one was warm,
-share-link joins and "+ robot" became a lottery because new sockets could
-land on an instance that did not hold the game. Ephemeral container disk also
-meant no durable sqlite or TTN corpus. Fixing both meant either moving all
-state to an external store (latency + rearchitecture) or an always-on single
-process — which is what the server was designed to be.
-
-**The same reasoning rules out serverless platforms generally**, for
-exactly the same three reasons: scale-to-zero cold starts, multi-instance
-state splitting, and no persistent local disk. A plain always-on VM is the
-right primitive here. Do not "modernise" this onto a serverless runtime
-without first moving game state out of process.
-
-**Why Hetzner (2026-07-23).** Several hosts were compared on price,
-specs, and India latency. Hetzner won on substance: 2 vCPU / 4 GB / 40 GB
-with 20 TB of bundled traffic for ~$8.50/mo all in, flat pricing with no
-lock-in or renewal cliff, and a free edge firewall. Two tradeoffs were
-accepted knowingly: EU rather than Indian hosting (~80 ms more for Indian
-players, imperceptible in a turn-based game), and no Indian GSTIN on the
-invoice — Hetzner is a German company, so no GST is charged to account
-for in the first place.
+The engine keeps live games **in memory in one process**. Serverless
+runtimes scale to zero (cold starts), scale out to multiple instances
+(where a second socket can land on an instance that does not hold your
+game, so share-link joins become a lottery), and give no persistent local
+disk (no sqlite, no TTN corpus). An always-on VM is the right primitive
+here. Do not move this onto a serverless runtime without first moving game
+state out of process.
