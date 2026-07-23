@@ -37,7 +37,7 @@ exquisite taste in design.
   **move animations** plus live-game activity in the lobby. Web and mobile
   ([task file](./tasks/browse-and-public-games.md)). Also fixed: a board
   that could overflow its column and slide under the rail, a client route
-  shadowed by an API path of the same name (read API now under ),
+  shadowed by an API path of the same name (read API now under `/api/`),
   and a production 500 from a database predating the new schema - it now
   migrates itself.
 
