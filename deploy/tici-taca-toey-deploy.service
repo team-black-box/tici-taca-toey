@@ -1,0 +1,17 @@
+# Runs the release deployer once. Paired with the .timer beside it; install
+# both at /etc/systemd/system/, then:
+#   systemctl daemon-reload && systemctl enable --now tici-taca-toey-deploy.timer
+#
+# Restarting the game server needs root, so deploy.sh calls sudo for exactly
+# that one command - see deploy/sudoers-tici-taca-toey.
+
+[Unit]
+Description=Install the newest published tici-taca-toey release
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=tici
+Group=tici
+ExecStart=/opt/tici-taca-toey/deploy.sh

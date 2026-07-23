@@ -1,0 +1,17 @@
+{
+  "name": "tici-taca-toey",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "web",
+    "sdk"
+  ],
+  "scripts": {
+    "dev:server": "bun --cwd server dev",
+    "dev:web": "bun --cwd web dev",
+    "test": "bun --cwd server test && bun --cwd web test",
+    "typecheck": "bun --cwd server typecheck && bun --cwd web typecheck && bun --cwd sdk typecheck",
+    "build": "bun --cwd web build"
+  }
+}

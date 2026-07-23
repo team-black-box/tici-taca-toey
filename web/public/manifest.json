@@ -1,0 +1,15 @@
+{
+  "short_name": "Tici Taca Toey",
+  "name": "Tici Taca Toey",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#050905",
+  "background_color": "#050905"
+}

@@ -1,0 +1,53 @@
+# systemd unit for the tici-taca-toey game server (single-origin: it serves
+# the built web app, the websocket, and the HTTP API). Install at
+# /etc/systemd/system/tici-taca-toey.service, then:
+#   systemctl daemon-reload && systemctl enable --now tici-taca-toey
+#
+# Runs whichever release /opt/tici-taca-toey/current points at (deploy.sh
+# swaps that symlink). Game data lives OUTSIDE the release directories so it
+# survives every deploy and rollback untouched.
+
+[Unit]
+Description=tici-taca-toey game server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tici
+Group=tici
+WorkingDirectory=/opt/tici-taca-toey/current/server
+ExecStart=/usr/local/bin/bun src/server.ts
+Restart=always
+RestartSec=2
+# Sockets are the realistic ceiling on a small box, not the engine.
+LimitNOFILE=65536
+
+# Only Caddy talks to it; never expose 8080 to the world.
+Environment=HOST=127.0.0.1
+Environment=PORT=8080
+Environment=TTT_WEB_DIR=/opt/tici-taca-toey/current/web/dist
+Environment=TTT_ALLOWED_ORIGINS=https://ticitacatoey.com
+# Sized for the CX23 (4 GB): ~365 KB of RSS per connected socket measured
+# in bench/sockets.bench.ts, ~3 GB left after the OS, Caddy, and headroom.
+# Games are cheap (~1 KB); connections are the real memory budget.
+Environment=TTT_MAX_CONNECTIONS=6000
+Environment=TTT_MAX_GAMES=3000
+# Absolute, and deliberately outside current/ - a deploy must never move or
+# clobber the database or the TTN corpus.
+Environment=TTN_LOG=/opt/tici-taca-toey/data/games.ttn
+Environment=TTT_DB=/opt/tici-taca-toey/data/tici-taca-toey.db
+
+# Hardening: the process can write only its data directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/tici-taca-toey/data
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <filter id="g" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="8" fill="#050905"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="7" fill="none" stroke="#1e3320" stroke-width="2"/>
+  <g stroke="#00ff66" stroke-width="2.5" filter="url(#g)">
+    <line x1="25" y1="10" x2="25" y2="54"/>
+    <line x1="41" y1="10" x2="41" y2="54"/>
+    <line x1="9" y1="25" x2="55" y2="25"/>
+    <line x1="9" y1="41" x2="55" y2="41"/>
+  </g>
+  <g filter="url(#g)">
+    <path d="M12 12 L21 21 M21 12 L12 21" stroke="#00ff66" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="33" cy="33" r="5" fill="none" stroke="#00d2ff" stroke-width="3"/>
+  </g>
+  <rect x="45" y="46" width="7" height="3.5" fill="#00ff66"/>
+</svg>

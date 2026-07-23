@@ -1,0 +1,96 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  server:
+    name: Server tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        working-directory: server
+        run: bun run typecheck
+      - name: Test
+        working-directory: server
+        run: bun test
+      - name: Benchmark winner calculation
+        working-directory: server
+        run: bun run bench
+
+  web:
+    name: Web tests and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        working-directory: web
+        run: bun run typecheck
+      - name: Test
+        working-directory: web
+        run: bun test
+      - name: Build
+        working-directory: web
+        run: bun run build
+
+  sdk:
+    name: SDK and robots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Typecheck SDK and reference robots
+        working-directory: sdk
+        run: bun run typecheck
+
+  mobile:
+    name: Mobile typecheck and bundles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        working-directory: mobile
+        run: bun install
+      - name: Typecheck
+        working-directory: mobile
+        run: bun run typecheck
+      - name: Metro release bundle (android)
+        working-directory: mobile
+        run: bun run bundle:android
+      - name: Metro release bundle (ios)
+        working-directory: mobile
+        run: bun run bundle:ios
+
+  mcp:
+    name: MCP play service
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: End-to-end (spawns server + bridge, plays a robot game)
+        run: bun test mcp

@@ -1,0 +1,80 @@
+# Publishing a GitHub Release builds the deployable artifact and attaches it
+# to that release. The production box polls for new releases and installs the
+# artifact - it never builds anything itself (see deploy/deploy.sh and
+# DEPLOYMENT.md).
+#
+# The artifact mirrors the repo layout so the server's relative imports
+# (server/src -> ../../shared) resolve unchanged:
+#
+#   server/src/**  server/package.json  shared/**  web/dist/**  deploy/**  VERSION
+#
+# The server has zero runtime dependencies, so there is no node_modules to
+# ship - Bun runs the TypeScript directly.
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)build and attach the artifact to
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and attach release artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # A release that cannot pass its own tests must never reach the box.
+      - name: Verify server
+        working-directory: server
+        run: bun run typecheck && bun test
+      - name: Verify web
+        working-directory: web
+        run: bun run typecheck && bun test
+
+      # TTT_SERVER_URL stays unset on purpose: production is single-origin,
+      # so the client uses its same-origin wss://<host>/ws fallback and no
+      # server URL is baked into the bundle.
+      - name: Build web bundle
+        working-directory: web
+        run: bun run build
+
+      - name: Package artifact
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -eu
+          STAGE=$(mktemp -d)
+          mkdir -p "$STAGE/server" "$STAGE/web"
+          cp -R server/src "$STAGE/server/src"
+          cp server/package.json "$STAGE/server/package.json"
+          cp -R shared "$STAGE/shared"
+          cp -R web/dist "$STAGE/web/dist"
+          cp -R deploy "$STAGE/deploy"
+          echo "$TAG" > "$STAGE/VERSION"
+          tar -czf tici-taca-toey.tar.gz -C "$STAGE" .
+          sha256sum tici-taca-toey.tar.gz > tici-taca-toey.tar.gz.sha256
+          echo "artifact size: $(du -h tici-taca-toey.tar.gz | cut -f1)"
+
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          gh release upload "$TAG" \
+            tici-taca-toey.tar.gz tici-taca-toey.tar.gz.sha256 \
+            --clobber --repo "$GITHUB_REPOSITORY"

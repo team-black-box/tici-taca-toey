@@ -1,0 +1,14 @@
+# Checks GitHub for a new release every few minutes. Deploy latency is
+# minutes rather than seconds, which buys the box never needing an inbound
+# port or a credential stored in CI.
+
+[Unit]
+Description=Check for a new tici-taca-toey release
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Unit=tici-taca-toey-deploy.service
+
+[Install]
+WantedBy=timers.target

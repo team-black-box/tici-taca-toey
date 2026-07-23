@@ -1,0 +1,9 @@
+# Caddy owns 80/443 and TLS (automatic Let's Encrypt) for every project on
+# the box. This file stays tiny on purpose: each project drops its own
+# snippet into /etc/caddy/sites/ and gets picked up here, so adding a
+# project is one new file plus `systemctl reload caddy` - never an edit to
+# this file.
+#
+# Install at /etc/caddy/Caddyfile; create /etc/caddy/sites/ alongside it.
+
+import /etc/caddy/sites/*.caddy

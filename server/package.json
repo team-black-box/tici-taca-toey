@@ -1,0 +1,25 @@
+{
+  "name": "tici-taca-toey-server",
+  "version": "1.0.0",
+  "description": "A multiplayer websockets server for the game of tici-taca-toey",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun src/server.ts",
+    "dev": "bun --watch src/server.ts",
+    "test": "bun test",
+    "bench": "bun bench/winner.bench.ts",
+    "typecheck": "bunx tsc --noEmit",
+    "bench:engine": "bun bench/engine.bench.ts",
+    "bench:sockets": "bun bench/sockets.bench.ts"
+  },
+  "keywords": [
+    "tic-tac-toe"
+  ],
+  "author": "subramanian-elavathur",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "^1.3.10",
+    "typescript": "^5.9.3"
+  }
+}

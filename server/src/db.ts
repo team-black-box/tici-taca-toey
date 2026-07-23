@@ -1,0 +1,369 @@
+// Persistence for identities, handles, the game archive, and Elo ratings.
+// Built on bun:sqlite (ships with Bun - zero new dependencies). One file,
+// WAL mode, written only at registration/completion - gameplay itself never
+// touches the database. See tasks/leaderboards-auth-replays.md.
+import { Database } from "bun:sqlite";
+import { Game, GameStatus } from "./model";
+
+export const HANDLE_PATTERN = /^[a-z0-9_-]{2,20}$/i;
+const ELO_K = 32;
+const DEFAULT_RATING = 1000;
+// Abandoned games rate as a loss for the abandoner only when the game had
+// substance (>= 4 moves), else they are unrated.
+const RATED_ABANDON_MIN_MOVES = 4;
+
+export interface LeaderboardRow {
+  playerId: string;
+  handle: string;
+  isRobot: boolean;
+  rating: number;
+  games: number;
+  wins: number;
+}
+
+export interface ArchivedGame {
+  gameId: string;
+  ttn: string;
+  status: string;
+  winnerSeat: number | null;
+  startedAt: number;
+  completedAt: number;
+  players: Array<{ seat: number; playerId: string; handle: string }>;
+}
+
+export class GameDb {
+  #db: Database;
+
+  constructor(path: string = ":memory:") {
+    this.#db = new Database(path, { create: true });
+    this.#db.exec("PRAGMA journal_mode = WAL;");
+    this.#db.exec(`
+      CREATE TABLE IF NOT EXISTS players (
+        player_id  TEXT PRIMARY KEY,
+        key_hash   TEXT NOT NULL DEFAULT '',
+        handle     TEXT NOT NULL DEFAULT '',
+        is_robot   INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        last_seen  INTEGER NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_players_handle
+        ON players (handle COLLATE NOCASE) WHERE handle != '';
+      CREATE INDEX IF NOT EXISTS idx_players_key_hash
+        ON players (key_hash) WHERE key_hash != '';
+      CREATE TABLE IF NOT EXISTS games (
+        game_id      TEXT PRIMARY KEY,
+        ttn          TEXT NOT NULL,
+        status       TEXT NOT NULL,
+        winner_seat  INTEGER,
+        started_at   INTEGER NOT NULL,
+        completed_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS game_players (
+        game_id   TEXT NOT NULL,
+        seat      INTEGER NOT NULL,
+        player_id TEXT NOT NULL,
+        PRIMARY KEY (game_id, seat)
+      );
+      CREATE INDEX IF NOT EXISTS idx_game_players_player
+        ON game_players (player_id);
+      CREATE TABLE IF NOT EXISTS ratings (
+        player_id TEXT NOT NULL,
+        pool      TEXT NOT NULL,
+        rating    REAL NOT NULL DEFAULT ${DEFAULT_RATING},
+        games     INTEGER NOT NULL DEFAULT 0,
+        wins      INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (player_id, pool)
+      );
+    `);
+  }
+
+  upsertPlayer(playerId: string, keyHash: string, isRobot: boolean) {
+    const now = Date.now();
+    this.#db
+      .query(
+        `INSERT INTO players (player_id, key_hash, handle, is_robot, created_at, last_seen)
+         VALUES (?, ?, '', ?, ?, ?)
+         ON CONFLICT(player_id) DO UPDATE SET
+           key_hash = CASE WHEN excluded.key_hash != '' THEN excluded.key_hash ELSE players.key_hash END,
+           is_robot = excluded.is_robot,
+           last_seen = excluded.last_seen`
+      )
+      .run(playerId, keyHash, isRobot ? 1 : 0, now, now);
+  }
+
+  claimHandle(
+    playerId: string,
+    handle: string
+  ): { ok: true; handle: string } | { ok: false; reason: "invalid" | "taken" } {
+    if (!HANDLE_PATTERN.test(handle)) {
+      return { ok: false, reason: "invalid" };
+    }
+    const holder = this.#db
+      .query(
+        `SELECT player_id FROM players WHERE handle = ? COLLATE NOCASE AND player_id != ?`
+      )
+      .get(handle, playerId) as { player_id: string } | null;
+    if (holder) {
+      return { ok: false, reason: "taken" };
+    }
+    this.#db
+      .query(`UPDATE players SET handle = ?, last_seen = ? WHERE player_id = ?`)
+      .run(handle, Date.now(), playerId);
+    return { ok: true, handle };
+  }
+
+  // Durable identity across server restarts: the in-memory key map is
+  // rebuilt lazily from this lookup (see engine.resolvePlayerKey).
+  playerIdByKeyHash(keyHash: string): string | null {
+    if (!keyHash) {
+      return null;
+    }
+    const row = this.#db
+      .query(
+        "SELECT player_id FROM players WHERE key_hash = ? ORDER BY last_seen DESC LIMIT 1"
+      )
+      .get(keyHash) as { player_id: string } | null;
+    return row?.player_id ?? null;
+  }
+
+  getHandle(playerId: string): string {
+    const row = this.#db
+      .query(`SELECT handle FROM players WHERE player_id = ?`)
+      .get(playerId) as { handle: string } | null;
+    return row?.handle ?? "";
+  }
+
+  static poolOf(game: Game): string {
+    return `${game.boardSize}x${game.winningSequenceLength}x${game.playerCount}${
+      game.timed ? "-timed" : ""
+    }`;
+  }
+
+  // Archive a finished game and settle ratings, atomically.
+  recordGame(game: Game) {
+    if (!game.notation) {
+      return;
+    }
+    const winnerSeat = game.winner ? game.players.indexOf(game.winner) : null;
+    const record = this.#db.transaction(() => {
+      this.#db
+        .query(
+          `INSERT OR REPLACE INTO games (game_id, ttn, status, winner_seat, started_at, completed_at)
+           VALUES (?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          game.gameId,
+          game.notation as string,
+          game.status,
+          winnerSeat,
+          game.createdAt,
+          game.completedAt ?? Date.now()
+        );
+      game.players.forEach((playerId, seat) => {
+        this.#db
+          .query(
+            `INSERT OR REPLACE INTO game_players (game_id, seat, player_id) VALUES (?, ?, ?)`
+          )
+          .run(game.gameId, seat, playerId);
+      });
+      this.#settleRatings(game);
+    });
+    record();
+  }
+
+  #getRating(playerId: string, pool: string): number {
+    const row = this.#db
+      .query(`SELECT rating FROM ratings WHERE player_id = ? AND pool = ?`)
+      .get(playerId, pool) as { rating: number } | null;
+    return row?.rating ?? DEFAULT_RATING;
+  }
+
+  #applyResult(pool: string, a: string, b: string, scoreA: number) {
+    const ratingA = this.#getRating(a, pool);
+    const ratingB = this.#getRating(b, pool);
+    const expectedA = 1 / (1 + 10 ** ((ratingB - ratingA) / 400));
+    const delta = ELO_K * (scoreA - expectedA);
+    const bump = this.#db.query(
+      `INSERT INTO ratings (player_id, pool, rating, games, wins)
+       VALUES (?, ?, ?, 1, ?)
+       ON CONFLICT(player_id, pool) DO UPDATE SET
+         rating = ratings.rating + ?,
+         games = ratings.games + 1,
+         wins = ratings.wins + ?`
+    );
+    const winA = scoreA === 1 ? 1 : 0;
+    const winB = scoreA === 0 ? 1 : 0;
+    bump.run(a, pool, DEFAULT_RATING + delta, winA, delta, winA);
+    bump.run(b, pool, DEFAULT_RATING - delta, winB, -delta, winB);
+  }
+
+  #settleRatings(game: Game) {
+    const pool = GameDb.poolOf(game);
+    const moveCount = game.moveLog.length / 2;
+    if (game.status === GameStatus.GAME_ABANDONED) {
+      // Rated only with substance; the abandoner is whoever is absent from
+      // the surviving set - the engine abandons on a specific player, but
+      // by this point we only know the game died. Skip rating entirely for
+      // low-substance games; otherwise rate nothing (fair default: an
+      // abandon punishes nobody until the engine attributes it).
+      return;
+    }
+    if (moveCount < 1) {
+      return;
+    }
+    if (
+      game.status === GameStatus.GAME_WON ||
+      game.status === GameStatus.GAME_WON_BY_TIMEOUT
+    ) {
+      game.players.forEach((playerId) => {
+        if (playerId !== game.winner) {
+          this.#applyResult(pool, game.winner, playerId, 1);
+        }
+      });
+      return;
+    }
+    if (game.status === GameStatus.GAME_ENDS_IN_A_DRAW) {
+      for (let i = 0; i < game.players.length; i++) {
+        for (let j = i + 1; j < game.players.length; j++) {
+          this.#applyResult(pool, game.players[i], game.players[j], 0.5);
+        }
+      }
+    }
+  }
+
+  // Attribute an abandonment: the leaver loses to every remaining player
+  // when the game had substance.
+  recordAbandonment(game: Game, abandonerId: string) {
+    const moveCount = game.moveLog.replaceAll("--", "").length / 2;
+    if (moveCount < RATED_ABANDON_MIN_MOVES) {
+      return;
+    }
+    const pool = GameDb.poolOf(game);
+    game.players.forEach((playerId) => {
+      if (playerId !== abandonerId) {
+        this.#applyResult(pool, playerId, abandonerId, 1);
+      }
+    });
+  }
+
+  leaderboard(pool: string, limit: number = 25): LeaderboardRow[] {
+    const rows = this.#db
+      .query(
+        `SELECT r.player_id, p.handle, p.is_robot, r.rating, r.games, r.wins
+         FROM ratings r JOIN players p ON p.player_id = r.player_id
+         WHERE r.pool = ?
+         ORDER BY r.rating DESC
+         LIMIT ?`
+      )
+      .all(pool, Math.min(Math.max(limit, 1), 100)) as Array<{
+      player_id: string;
+      handle: string;
+      is_robot: number;
+      rating: number;
+      games: number;
+      wins: number;
+    }>;
+    return rows.map((row) => ({
+      playerId: row.player_id,
+      handle: row.handle || "anonymous",
+      isRobot: row.is_robot === 1,
+      rating: Math.round(row.rating),
+      games: row.games,
+      wins: row.wins,
+    }));
+  }
+
+  pools(): string[] {
+    const rows = this.#db
+      .query(`SELECT DISTINCT pool FROM ratings ORDER BY pool`)
+      .all() as Array<{ pool: string }>;
+    return rows.map((row) => row.pool);
+  }
+
+  getGame(gameId: string): ArchivedGame | null {
+    const game = this.#db
+      .query(`SELECT * FROM games WHERE game_id = ?`)
+      .get(gameId) as {
+      game_id: string;
+      ttn: string;
+      status: string;
+      winner_seat: number | null;
+      started_at: number;
+      completed_at: number;
+    } | null;
+    if (!game) {
+      return null;
+    }
+    const players = this.#db
+      .query(
+        `SELECT gp.seat, gp.player_id, p.handle
+         FROM game_players gp LEFT JOIN players p ON p.player_id = gp.player_id
+         WHERE gp.game_id = ? ORDER BY gp.seat`
+      )
+      .all(gameId) as Array<{ seat: number; player_id: string; handle: string }>;
+    return {
+      gameId: game.game_id,
+      ttn: game.ttn,
+      status: game.status,
+      winnerSeat: game.winner_seat,
+      startedAt: game.started_at,
+      completedAt: game.completed_at,
+      players: players.map((row) => ({
+        seat: row.seat,
+        playerId: row.player_id,
+        handle: row.handle ?? "",
+      })),
+    };
+  }
+
+  playerGames(playerId: string, limit: number = 25): ArchivedGame[] {
+    const ids = this.#db
+      .query(
+        `SELECT g.game_id FROM games g
+         JOIN game_players gp ON gp.game_id = g.game_id
+         WHERE gp.player_id = ?
+         ORDER BY g.completed_at DESC LIMIT ?`
+      )
+      .all(playerId, Math.min(Math.max(limit, 1), 100)) as Array<{
+      game_id: string;
+    }>;
+    return ids
+      .map((row) => this.getGame(row.game_id))
+      .filter((game): game is ArchivedGame => game !== null);
+  }
+
+  playerProfile(playerId: string) {
+    const player = this.#db
+      .query(
+        `SELECT player_id, handle, is_robot, created_at FROM players WHERE player_id = ?`
+      )
+      .get(playerId) as {
+      player_id: string;
+      handle: string;
+      is_robot: number;
+      created_at: number;
+    } | null;
+    if (!player) {
+      return null;
+    }
+    const ratings = this.#db
+      .query(`SELECT pool, rating, games, wins FROM ratings WHERE player_id = ?`)
+      .all(playerId) as Array<{
+      pool: string;
+      rating: number;
+      games: number;
+      wins: number;
+    }>;
+    return {
+      playerId: player.player_id,
+      handle: player.handle || "anonymous",
+      isRobot: player.is_robot === 1,
+      createdAt: player.created_at,
+      ratings: ratings.map((row) => ({ ...row, rating: Math.round(row.rating) })),
+    };
+  }
+
+  close() {
+    this.#db.close();
+  }
+}

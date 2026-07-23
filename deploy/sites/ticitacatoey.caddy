@@ -1,0 +1,15 @@
+# tici-taca-toey. Install at /etc/caddy/sites/ticitacatoey.caddy.
+#
+# The game server is a plain HTTP + websocket process on localhost serving
+# the app, the /ws endpoint, and the HTTP API from one origin. Websocket
+# upgrades pass through reverse_proxy automatically, so wss://ticitacatoey.com
+# terminates TLS here and arrives at Bun as plain ws://.
+
+ticitacatoey.com {
+	reverse_proxy 127.0.0.1:8080
+	encode zstd gzip
+}
+
+www.ticitacatoey.com {
+	redir https://ticitacatoey.com{uri} permanent
+}

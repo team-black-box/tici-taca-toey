@@ -1,0 +1,70 @@
+# Mirrors the production server's TTN game corpus into git once a day, so
+# the learning playground (and anyone else) always has a fresh public
+# dataset at data/games.ttn. The endpoint serves notation lines only - no
+# names, no identifiers. Safe to fail quietly until the box is live.
+#
+# The repo copy is a strict SUPERSET: it merges rather than replaces, so a
+# box that was rebuilt, restored from backup, or moved can never shrink the
+# public history.
+name: Refresh Game Dataset
+
+on:
+  schedule:
+    - cron: "30 2 * * *" # daily 02:30 UTC = 08:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the latest corpus
+        id: fetch
+        continue-on-error: true
+        run: |
+          curl -fsS --max-time 30 https://ticitacatoey.com/dataset -o /tmp/games.ttn
+          # An empty corpus is a valid answer from a freshly deployed box -
+          # nothing to merge, so stop without failing the run.
+          if [ ! -s /tmp/games.ttn ]; then
+            echo "server corpus is empty; nothing to merge"
+            exit 1
+          fi
+          head -1 /tmp/games.ttn | grep -qE "^[12]\." || {
+            echo "response does not look like TTN; refusing"
+            exit 1
+          }
+
+      - name: Merge into the repo corpus
+        if: steps.fetch.outcome == 'success'
+        run: |
+          set -eu
+          touch data/games.ttn
+
+          # Identical TTN lines are NOT duplicates to be collapsed: two
+          # different games can legitimately play out move-for-move the
+          # same, and that frequency is real signal for behaviour cloning.
+          # So the merge keeps multiplicity - it appends only the
+          # occurrences the repo does not already account for, which also
+          # keeps the git diff a pure append.
+          awk '
+            NR == FNR { repo[$0]++; next }
+            { seen[$0]++; if (seen[$0] > repo[$0]) print }
+          ' data/games.ttn /tmp/games.ttn >> data/games.ttn
+
+          echo "repo corpus: $(wc -l < data/games.ttn) games"
+
+      - name: Commit when the corpus grew
+        if: steps.fetch.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet data/games.ttn; then
+            games=$(wc -l < data/games.ttn | tr -d ' ')
+            git add data/games.ttn
+            git commit -m "data: refresh game corpus ($games games)"
+            git push
+          fi

@@ -1,0 +1,7 @@
+# Lets the deployer restart the game server and nothing else. Install with
+# root-owned 0440 permissions, which visudo enforces:
+#   install -m 0440 -o root -g root \
+#     deploy/sudoers-tici-taca-toey /etc/sudoers.d/tici-taca-toey
+#   visudo -c
+
+tici ALL=(root) NOPASSWD: /usr/bin/systemctl restart tici-taca-toey
