@@ -114,9 +114,11 @@ describe("LIST_GAMES lobby", () => {
       winningSequenceCount: 1,
       teamCount: 0,
       playerCount: 3,
+      agentCount: 0,
       humanCount: 1,
       robotCount: 1,
       spectatorCount: 1,
+      openSeats: false,
       status: GameStatus.WAITING_FOR_PLAYERS,
       timed: false,
     });

@@ -50,6 +50,9 @@ export interface RegisterPlayerMessage {
   playerId: string;
   // Secret durable identity for reconnect-and-resume. Never broadcast.
   playerKey?: string;
+  // Set by the server only - `server.ts` strips it from client payloads so
+  // a browser cannot badge itself as an agent. MCP sessions set it.
+  kind?: import("../../shared/model").PlayerKind;
   gameId?: string;
 }
 
@@ -82,6 +85,8 @@ export interface StartGameMessage {
   winningSequenceCount?: number;
   // Variant: equal teams (default 0 = none); playerCount % teamCount == 0.
   teamCount?: number;
+  // Start the game already open to strangers from the lobby.
+  openSeats?: boolean;
   connection: PlayerConnection;
   playerId: string;
   gameId: string;
@@ -95,6 +100,19 @@ export interface JoinGameMessage {
   gameId: string;
   connection: PlayerConnection;
   playerId: string;
+  // Set when the join came from the public lobby rather than an invite
+  // link, so the engine can require the game to be open.
+  fromLobby?: boolean;
+}
+
+// Open a game you are seated in to strangers browsing the lobby.
+export interface OpenSeatsMessage {
+  type: MessageTypes.OPEN_SEATS;
+  gameId: string;
+  connection?: PlayerConnection;
+  playerId: string;
+  // false closes it again.
+  open?: boolean;
 }
 
 export interface UpdateTimeMessage {
@@ -170,6 +188,7 @@ export type Message =
   | RegisterPlayerMessage
   | RegisterRobotMessage
   | RequestRobotMessage
+  | OpenSeatsMessage
   | StartGameMessage
   | JoinGameMessage
   | SpectateGameMessage

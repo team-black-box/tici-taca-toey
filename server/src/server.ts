@@ -186,17 +186,46 @@ const server = Bun.serve<SocketData>({
         mcpSessions: mcpSessionCount(),
       });
     }
-    // The one public read endpoint the db backs: leaderboard rows carry
-    // handles only. Personal history goes over the websocket
-    // (LIST_MY_GAMES), so player ids never appear in URLs or public JSON.
-    if (engine.db && url.pathname === "/leaderboard") {
-      const pool = url.searchParams.get("pool") ?? GLOBAL_POOL;
-      const limit = Number(url.searchParams.get("limit") ?? 25);
-      return json({
-        pool,
-        pools: engine.db.pools(),
-        rows: engine.db.leaderboard(pool, Number.isFinite(limit) ? limit : 25),
-      });
+    // Public read endpoints. Everything here is keyed by the **handle** -
+    // the identity a player chose to make public - never by the internal
+    // playerId, which stays off the wire entirely.
+    if (engine.db) {
+      if (url.pathname === "/leaderboard") {
+        const pool = url.searchParams.get("pool") ?? GLOBAL_POOL;
+        const limit = Number(url.searchParams.get("limit") ?? 25);
+        return json({
+          pool,
+          pools: engine.db.pools(),
+          rows: engine.db.leaderboard(pool, Number.isFinite(limit) ? limit : 25),
+        });
+      }
+      // Anyone's finished games, for the browse-and-replay pages. TTN
+      // lines are board sizes and move sequences - they identify nobody.
+      const byHandle = url.pathname.match(
+        /^[/]handles[/]([a-zA-Z0-9_-]{2,20})[/]games$/
+      );
+      if (byHandle) {
+        const limit = Number(url.searchParams.get("limit") ?? 25);
+        return json({
+          handle: byHandle[1],
+          games: engine.db
+            .gamesByHandle(byHandle[1], Number.isFinite(limit) ? limit : 25)
+            .map((game) => ({
+              gameId: game.gameId,
+              ttn: game.ttn,
+              status: game.status,
+              winnerSeat: game.winnerSeat,
+              mySeat: -1,
+              startedAt: game.startedAt,
+              completedAt: game.completedAt,
+              players: game.players.map((player) => ({
+                seat: player.seat,
+                handle: player.handle || "anonymous",
+                kind: player.kind,
+              })),
+            })),
+        });
+      }
     }
     if (
       ALLOWED_ORIGINS.length > 0 &&
@@ -302,6 +331,13 @@ const server = Bun.serve<SocketData>({
           message.playerKey,
           ws.data.playerId
         );
+      }
+
+      // `kind` is server-assigned (REGISTER_ROBOT makes a robot, an MCP
+      // session makes an agent). Drop any client-supplied value so a
+      // browser cannot badge itself as one.
+      if ("kind" in message) {
+        delete (message as { kind?: unknown }).kind;
       }
 
       const enrichedMessage = {

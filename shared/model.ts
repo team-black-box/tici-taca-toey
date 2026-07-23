@@ -23,9 +23,20 @@ export interface WinningSequence {
   y: number;
 }
 
+// What is sitting in a seat. Robots register with REGISTER_ROBOT and use
+// the SDK; agents arrive over MCP and play through an in-process
+// connection. Both are machines, but they are different kinds of machine
+// and the UI names them differently.
+export enum PlayerKind {
+  HUMAN = "human",
+  ROBOT = "robot",
+  AGENT = "agent",
+}
+
 export interface Player {
   name: string;
   playerId: string;
+  kind: PlayerKind;
 }
 
 // --- the game --------------------------------------------------------------
@@ -41,6 +52,10 @@ export interface Game {
   winner: string;
   winningSequence: WinningSequence[];
   winningSequenceLength: number;
+  // Open to strangers: anyone can take a free seat straight from the
+  // lobby, no invite link needed. Off by default - a game you start is
+  // yours until you open it, the same way a robot only joins when asked.
+  openSeats: boolean;
   // Variant: number of sequences required to win (1 = the classic game).
   winningSequenceCount: number;
   // Variant: number of equal teams (0 = no teams). Team of a seat is
@@ -115,7 +130,10 @@ export interface GameSummary {
   playerCount: number;
   humanCount: number;
   robotCount: number;
+  agentCount: number;
   spectatorCount: number;
+  // Anyone may take a seat from the lobby.
+  openSeats: boolean;
   status: GameStatus;
   timed: boolean;
 }
@@ -168,10 +186,11 @@ export interface ArchivedGameSummary {
   ttn: string;
   status: GameStatus;
   winnerSeat: number | null;
+  // The requester's seat, or -1 when looking at someone else's game.
   mySeat: number;
   startedAt: number;
   completedAt: number;
-  players: Array<{ seat: number; handle: string }>;
+  players: Array<{ seat: number; handle: string; kind: PlayerKind }>;
 }
 
 export interface MyGamesResponse {
@@ -220,6 +239,8 @@ export enum MessageTypes {
   REGISTER_PLAYER = "REGISTER_PLAYER",
   REGISTER_ROBOT = "REGISTER_ROBOT",
   REQUEST_ROBOT = "REQUEST_ROBOT",
+  // Open a game you are in to strangers from the lobby.
+  OPEN_SEATS = "OPEN_SEATS",
   START_GAME = "START_GAME",
   JOIN_GAME = "JOIN_GAME",
   MAKE_MOVE = "MAKE_MOVE",
@@ -268,6 +289,7 @@ export enum ErrorCodes {
   RATE_LIMITED = "RATE_LIMITED",
   NO_ROBOT_AVAILABLE = "NO_ROBOT_AVAILABLE",
   GAME_IS_FULL = "GAME_IS_FULL",
+  GAME_IS_NOT_OPEN = "GAME_IS_NOT_OPEN",
 }
 
 export enum GameStatus {

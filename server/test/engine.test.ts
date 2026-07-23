@@ -6,6 +6,7 @@ import {
   Message,
   MessageTypes,
   PlayerConnection,
+  PlayerKind,
 } from "../src/model";
 
 class FakeConnection implements PlayerConnection {
@@ -112,6 +113,7 @@ describe("registration", () => {
       type: MessageTypes.REGISTER_PLAYER,
       name: "Alice",
       playerId: "alice",
+      kind: PlayerKind.HUMAN,
     });
   });
 

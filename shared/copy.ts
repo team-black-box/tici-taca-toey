@@ -40,5 +40,7 @@ export const ERROR_COPY: Record<ErrorCodes, string> = {
     "the server is at capacity - try again shortly",
   [ErrorCodes.INVALID_ROBOT_CAPABILITIES]:
     "that robot registration was malformed",
+  [ErrorCodes.GAME_IS_NOT_OPEN]:
+    "that game is not open to strangers - ask for the invite link",
   [ErrorCodes.GAME_IS_FULL]: "that game is full - spectate instead",
 };

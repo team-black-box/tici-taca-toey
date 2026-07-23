@@ -8,6 +8,12 @@ exquisite taste in design.
 
 ## In progress
 
+- Leaderboard page, agent badges, and public games
+  ([task file](./tasks/browse-and-public-games.md)).
+  Last checkpoint: 2026-07-23 16:49 IST - server and protocol done
+  (PlayerKind, full leaderboard stats, handle-keyed browse endpoint);
+  web layer next.
+
 - Production cutover: one Hetzner box (CX23, Nuremberg), one origin,
   releases installed by the box itself (Caddy + systemd, key-only SSH)
   ([task file](./tasks/production-cutover.md)).

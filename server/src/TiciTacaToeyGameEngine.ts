@@ -20,6 +20,7 @@ import {
   CalculateWinnerOutputType,
   WinningSequence,
   PlayerConnection,
+  PlayerKind,
 } from "./model";
 import { Timer } from "./timer";
 import { countSequences, ownerOfSeat, teamOfSeat } from "./rules";
@@ -101,10 +102,18 @@ const getConnectedSpectators = (players: PlayerStore, game: Game) =>
 
 const getPlayers = (connectedPlayers: ConnectedPlayer[]) => {
   return connectedPlayers.reduce(
-    (acc: Record<string, { name: string; playerId: string }>, each) => {
+    (
+      acc: Record<
+        string,
+        { name: string; playerId: string; kind: PlayerKind }
+      >,
+      each
+    ) => {
       acc[each.playerId] = {
         name: each.name,
         playerId: each.playerId,
+        // Clients badge robots and MCP agents differently from humans.
+        kind: each.kind,
       };
       return acc;
     },
@@ -450,6 +459,25 @@ class TiciTacaToeyGameEngine implements GameEngine {
           if (game.status !== GameStatus.WAITING_FOR_PLAYERS) {
             return fail(ErrorCodes.GAME_ALREADY_IN_PROGRESS);
           }
+          // Holding the link is an invitation; browsing the lobby is not.
+          // Taking a seat from the lobby requires the host to have opened
+          // the game to strangers.
+          if (message.fromLobby && !game.openSeats) {
+            return fail(ErrorCodes.GAME_IS_NOT_OPEN);
+          }
+          break;
+        }
+        case MessageTypes.OPEN_SEATS: {
+          const game = this.games[message.gameId];
+          if (!game) {
+            return fail(ErrorCodes.GAME_NOT_FOUND);
+          }
+          if (!game.players.includes(message.playerId)) {
+            return fail(ErrorCodes.PLAYER_NOT_PART_OF_GAME);
+          }
+          if (game.status !== GameStatus.WAITING_FOR_PLAYERS) {
+            return fail(ErrorCodes.GAME_ALREADY_IN_PROGRESS);
+          }
           break;
         }
         case MessageTypes.MAKE_MOVE: {
@@ -495,7 +523,8 @@ class TiciTacaToeyGameEngine implements GameEngine {
           message.playerId,
           sanitizeName(message.name),
           message.connection,
-          message.playerKey
+          message.playerKey,
+          message.kind ?? PlayerKind.HUMAN
         );
         break;
       }
@@ -505,7 +534,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
           sanitizeName(message.name),
           message.connection,
           message.playerKey,
-          true
+          PlayerKind.ROBOT
         );
         const existing = this.robots[message.playerId];
         this.robots = {
@@ -533,6 +562,17 @@ class TiciTacaToeyGameEngine implements GameEngine {
           connection: this.players[robot.playerId].connection,
         });
         robot.activeGames = [...robot.activeGames, message.gameId];
+        break;
+      }
+      case MessageTypes.OPEN_SEATS: {
+        const game = this.games[message.gameId];
+        if (!game) {
+          break;
+        }
+        this.games[message.gameId] = {
+          ...game,
+          openSeats: message.open !== false,
+        };
         break;
       }
       case MessageTypes.CLAIM_HANDLE: {
@@ -659,6 +699,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
           winningSequenceCount: message.winningSequenceCount ?? 1,
           teamCount: message.teamCount ?? 0,
           winningTeam: -1,
+          openSeats: message.openSeats === true,
           players: [message.playerId],
           spectators: [],
           winner: "",
@@ -887,7 +928,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
     name: string,
     connection: PlayerConnection,
     playerKey?: string,
-    isRobot = false
+    kind: PlayerKind = PlayerKind.HUMAN
   ) {
     const existing = this.players[playerId];
     const graceTimer = this.#graceTimers.get(playerId);
@@ -895,27 +936,46 @@ class TiciTacaToeyGameEngine implements GameEngine {
       clearTimeout(graceTimer);
       this.#graceTimers.delete(playerId);
     }
-    const storedHandle = this.#db?.getHandle(playerId);
-    this.players[playerId] = {
-        playerId,
-        name: storedHandle || name || existing?.name || "",
-        connection,
-        connected: true,
-        playerKey:
-          typeof playerKey === "string" &&
-          playerKey.length >= MIN_PLAYER_KEY_LENGTH
-            ? playerKey.slice(0, MAX_PLAYER_KEY_LENGTH)
-            : existing?.playerKey,
-      };
+    const resolvedKey =
+      typeof playerKey === "string" && playerKey.length >= MIN_PLAYER_KEY_LENGTH
+        ? playerKey.slice(0, MAX_PLAYER_KEY_LENGTH)
+        : existing?.playerKey;
+
+    // Persist the player row *before* asking for a handle: ensureHandle
+    // updates that row, so doing it the other way round silently assigns
+    // nothing on a player's very first connection.
+    let storedHandle = "";
     if (this.#db) {
       try {
-        const key = this.players[playerId].playerKey;
-        const keyHash = key ? hashPlayerKey(key) : "";
-        this.#db.upsertPlayer(playerId, keyHash, isRobot);
+        const keyHash = resolvedKey ? hashPlayerKey(resolvedKey) : "";
+        this.#db.upsertPlayer(playerId, keyHash, kind);
+        // Everyone gets a handle on arrival, so no player is ever
+        // "anonymous" and every leaderboard row is a real, clickable
+        // identity. Robots and agents bring their own names and keep them.
+        //
+        // This is also what makes an emptied handle field snap back:
+        // clients prefer their locally typed name and fall back to what
+        // the server echoes, so clearing the box restores the stored
+        // handle rather than leaving a nameless player.
+        storedHandle =
+          kind === PlayerKind.HUMAN
+            ? this.#db.ensureHandle(playerId)
+            : this.#db.getHandle(playerId);
       } catch (error) {
         console.error("Player persistence failed", error);
       }
     }
+
+    this.players[playerId] = {
+        playerId,
+        name: storedHandle || name || existing?.name || "",
+        // A resuming player keeps whatever they already were, so a robot
+        // or agent reconnecting is not demoted to a human.
+        kind: kind !== PlayerKind.HUMAN ? kind : existing?.kind ?? kind,
+        connection,
+        connected: true,
+        playerKey: resolvedKey,
+      };
   }
 
   // The robot scheduler: pick the least-loaded available robot whose
@@ -1010,8 +1070,14 @@ class TiciTacaToeyGameEngine implements GameEngine {
     return Object.values(this.games)
       .filter((game) => !COMPLETED_GAME_STATUS.includes(game.status))
       .map((game) => {
-        const robotCount = game.players.filter(
-          (playerId) => this.robots[playerId]
+        const kinds = game.players.map(
+          (playerId) => this.players[playerId]?.kind ?? PlayerKind.HUMAN
+        );
+        const robotCount = kinds.filter(
+          (kind) => kind === PlayerKind.ROBOT
+        ).length;
+        const agentCount = kinds.filter(
+          (kind) => kind === PlayerKind.AGENT
         ).length;
         return {
           gameId: game.gameId,
@@ -1021,9 +1087,11 @@ class TiciTacaToeyGameEngine implements GameEngine {
           winningSequenceCount: game.winningSequenceCount,
           teamCount: game.teamCount,
           playerCount: game.playerCount,
-          humanCount: game.players.length - robotCount,
+          humanCount: game.players.length - robotCount - agentCount,
           robotCount,
+          agentCount,
           spectatorCount: game.spectators.length,
+          openSeats: game.openSeats,
           status: game.status,
           timed: game.timed,
         };
@@ -1115,6 +1183,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
           name:
             this.players[message.playerId]?.name ?? sanitizeName(message.name),
           playerId: message.playerId,
+          kind: this.players[message.playerId]?.kind ?? PlayerKind.HUMAN,
         };
         safeSend(message.connection, JSON.stringify(response));
         this.notifyResumedGames(message.playerId, message.connection);
@@ -1195,6 +1264,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
               players: game.players.map((player) => ({
                 seat: player.seat,
                 handle: player.handle || "anonymous",
+                kind: player.kind,
               })),
             })),
           };
@@ -1238,6 +1308,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
       case MessageTypes.START_GAME:
       case MessageTypes.JOIN_GAME:
       case MessageTypes.REQUEST_ROBOT:
+      case MessageTypes.OPEN_SEATS:
       case MessageTypes.SPECTATE_GAME:
       case MessageTypes.PLAYER_TIMEOUT:
       case MessageTypes.NOTIFY_TIME:
@@ -1250,8 +1321,12 @@ class TiciTacaToeyGameEngine implements GameEngine {
         const connectedPlayers = getConnectedPlayers(this.players, game);
         const connectedSpectators = getConnectedSpectators(this.players, game);
 
+        // REQUEST_ROBOT and OPEN_SEATS both surface as a plain JOIN_GAME
+        // broadcast: clients already handle that shape, and the change
+        // they care about is simply the refreshed game state.
         const baseType =
-          message.type === MessageTypes.REQUEST_ROBOT
+          message.type === MessageTypes.REQUEST_ROBOT ||
+          message.type === MessageTypes.OPEN_SEATS
             ? MessageTypes.JOIN_GAME
             : message.type;
         const response: Response = {

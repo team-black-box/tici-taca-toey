@@ -322,7 +322,10 @@ describe("personal history over the websocket", () => {
     expect(typeof archived.ttn).toBe("string");
     const seats = archived.players as Array<Record<string, unknown>>;
     expect(seats[0].handle).toBe("alice");
-    expect(seats[1].handle).toBe("anonymous");
+    // The opponent was assigned a handle on arrival, so seats always name
+    // somebody - never "anonymous".
+    expect(seats[1].handle).not.toBe("");
+    expect(seats[1].handle).not.toBe("anonymous");
     // The whole point: no playerId ever leaves the server here.
     expect(JSON.stringify(response)).not.toContain("bob");
   });

@@ -17,6 +17,7 @@ import {
   MessageTypes,
   PlayerConnection,
   GameEngine,
+  PlayerKind,
 } from "./model";
 import {
   MCP_DEFAULT_WAIT_SECONDS,
@@ -332,6 +333,8 @@ export const handleMcpRequest = async (
         type: MessageTypes.REGISTER_PLAYER,
         playerId,
         name: "agent",
+        // Seats taken over MCP are badged as agents in every client.
+        kind: PlayerKind.AGENT,
         ...(playerKey ? { playerKey } : {}),
         connection: session.connection,
       } as Message)

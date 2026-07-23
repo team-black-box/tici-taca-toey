@@ -3,7 +3,8 @@
 // WAL mode, written only at registration/completion - gameplay itself never
 // touches the database. See tasks/leaderboards-auth-replays.md.
 import { Database } from "bun:sqlite";
-import { Game, GameStatus } from "./model";
+import { Game, GameStatus, PlayerKind } from "./model";
+import { generateHandle } from "../../shared/handles";
 
 export const HANDLE_PATTERN = /^[a-z0-9_-]{2,20}$/i;
 const ELO_K = 32;
@@ -33,13 +34,17 @@ export const difficultyOf = (game: Game): number => {
 };
 
 // No playerId here on purpose: public rows carry handles only, so nobody
-// can lift ids off the leaderboard (they matter only in-game).
+// can lift ids off the leaderboard (they matter only in-game). The handle
+// is the public identity, and the only key the browse pages need.
 export interface LeaderboardRow {
   handle: string;
-  isRobot: boolean;
+  kind: PlayerKind;
   rating: number;
   games: number;
   wins: number;
+  draws: number;
+  losses: number;
+  winRate: number;
 }
 
 export interface ArchivedGame {
@@ -49,7 +54,12 @@ export interface ArchivedGame {
   winnerSeat: number | null;
   startedAt: number;
   completedAt: number;
-  players: Array<{ seat: number; playerId: string; handle: string }>;
+  players: Array<{
+    seat: number;
+    playerId: string;
+    handle: string;
+    kind: PlayerKind;
+  }>;
 }
 
 export class GameDb {
@@ -63,7 +73,7 @@ export class GameDb {
         player_id  TEXT PRIMARY KEY,
         key_hash   TEXT NOT NULL DEFAULT '',
         handle     TEXT NOT NULL DEFAULT '',
-        is_robot   INTEGER NOT NULL DEFAULT 0,
+        kind       TEXT NOT NULL DEFAULT '${PlayerKind.HUMAN}',
         created_at INTEGER NOT NULL,
         last_seen  INTEGER NOT NULL
       );
@@ -93,23 +103,50 @@ export class GameDb {
         rating    REAL NOT NULL DEFAULT ${DEFAULT_RATING},
         games     INTEGER NOT NULL DEFAULT 0,
         wins      INTEGER NOT NULL DEFAULT 0,
+        draws     INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (player_id, pool)
       );
     `);
   }
 
-  upsertPlayer(playerId: string, keyHash: string, isRobot: boolean) {
+  upsertPlayer(playerId: string, keyHash: string, kind: PlayerKind) {
     const now = Date.now();
     this.#db
       .query(
-        `INSERT INTO players (player_id, key_hash, handle, is_robot, created_at, last_seen)
+        `INSERT INTO players (player_id, key_hash, handle, kind, created_at, last_seen)
          VALUES (?, ?, '', ?, ?, ?)
          ON CONFLICT(player_id) DO UPDATE SET
            key_hash = CASE WHEN excluded.key_hash != '' THEN excluded.key_hash ELSE players.key_hash END,
-           is_robot = excluded.is_robot,
+           kind = excluded.kind,
            last_seen = excluded.last_seen`
       )
-      .run(playerId, keyHash, isRobot ? 1 : 0, now, now);
+      .run(playerId, keyHash, kind, now, now);
+  }
+
+  // Give a player a handle if they have none, so nobody ever shows up as
+  // "anonymous". Retries on the (rare) collision, then gives up rather
+  // than looping - a player with no handle is a cosmetic problem, and
+  // gameplay must never depend on this succeeding.
+  ensureHandle(playerId: string): string {
+    const existing = this.getHandle(playerId);
+    if (existing) {
+      return existing;
+    }
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const candidate = generateHandle();
+      const result = this.claimHandle(playerId, candidate);
+      if (result.ok) {
+        return result.handle;
+      }
+    }
+    return "";
+  }
+
+  kindOf(playerId: string): PlayerKind {
+    const row = this.#db
+      .query(`SELECT kind FROM players WHERE player_id = ?`)
+      .get(playerId) as { kind: string } | null;
+    return (row?.kind as PlayerKind) ?? PlayerKind.HUMAN;
   }
 
   claimHandle(
@@ -207,17 +244,19 @@ export class GameDb {
     const expectedA = 1 / (1 + 10 ** ((ratingB - ratingA) / 400));
     const delta = k * (scoreA - expectedA);
     const bump = this.#db.query(
-      `INSERT INTO ratings (player_id, pool, rating, games, wins)
-       VALUES (?, ?, ?, 1, ?)
+      `INSERT INTO ratings (player_id, pool, rating, games, wins, draws)
+       VALUES (?, ?, ?, 1, ?, ?)
        ON CONFLICT(player_id, pool) DO UPDATE SET
          rating = ratings.rating + ?,
          games = ratings.games + 1,
-         wins = ratings.wins + ?`
+         wins = ratings.wins + ?,
+         draws = ratings.draws + ?`
     );
     const winA = scoreA === 1 ? 1 : 0;
     const winB = scoreA === 0 ? 1 : 0;
-    bump.run(a, pool, DEFAULT_RATING + delta, winA, delta, winA);
-    bump.run(b, pool, DEFAULT_RATING - delta, winB, -delta, winB);
+    const drawn = scoreA === 0.5 ? 1 : 0;
+    bump.run(a, pool, DEFAULT_RATING + delta, winA, drawn, delta, winA, drawn);
+    bump.run(b, pool, DEFAULT_RATING - delta, winB, drawn, -delta, winB, drawn);
   }
 
   // Apply one pairwise result to the configuration pool (unscaled) and the
@@ -298,29 +337,45 @@ export class GameDb {
     });
   }
 
+  // Anonymous players are excluded on purpose: the full table is a browse
+  // surface keyed by handle, and a row you cannot click is just noise.
   leaderboard(pool: string, limit: number = 25): LeaderboardRow[] {
     const rows = this.#db
       .query(
-        `SELECT p.handle, p.is_robot, r.rating, r.games, r.wins
+        `SELECT p.handle, p.kind, r.rating, r.games, r.wins, r.draws
          FROM ratings r JOIN players p ON p.player_id = r.player_id
-         WHERE r.pool = ?
+         WHERE r.pool = ? AND p.handle != ''
          ORDER BY r.rating DESC
          LIMIT ?`
       )
-      .all(pool, Math.min(Math.max(limit, 1), 100)) as Array<{
+      .all(pool, Math.min(Math.max(limit, 1), 500)) as Array<{
       handle: string;
-      is_robot: number;
+      kind: string;
       rating: number;
       games: number;
       wins: number;
+      draws: number;
     }>;
     return rows.map((row) => ({
-      handle: row.handle || "anonymous",
-      isRobot: row.is_robot === 1,
+      handle: row.handle,
+      kind: (row.kind as PlayerKind) ?? PlayerKind.HUMAN,
       rating: Math.round(row.rating),
       games: row.games,
       wins: row.wins,
+      draws: row.draws,
+      losses: Math.max(0, row.games - row.wins - row.draws),
+      winRate: row.games > 0 ? Math.round((row.wins / row.games) * 100) : 0,
     }));
+  }
+
+  // Someone else's finished games, looked up by their public handle. TTN
+  // lines carry no identity, so replaying another player's game exposes
+  // nothing beyond what the leaderboard already shows.
+  gamesByHandle(handle: string, limit: number = 25): ArchivedGame[] {
+    const player = this.#db
+      .query(`SELECT player_id FROM players WHERE handle = ? COLLATE NOCASE`)
+      .get(handle) as { player_id: string } | null;
+    return player ? this.playerGames(player.player_id, limit) : [];
   }
 
   pools(): string[] {
@@ -346,11 +401,16 @@ export class GameDb {
     }
     const players = this.#db
       .query(
-        `SELECT gp.seat, gp.player_id, p.handle
+        `SELECT gp.seat, gp.player_id, p.handle, p.kind
          FROM game_players gp LEFT JOIN players p ON p.player_id = gp.player_id
          WHERE gp.game_id = ? ORDER BY gp.seat`
       )
-      .all(gameId) as Array<{ seat: number; player_id: string; handle: string }>;
+      .all(gameId) as Array<{
+      seat: number;
+      player_id: string;
+      handle: string;
+      kind: string | null;
+    }>;
     return {
       gameId: game.game_id,
       ttn: game.ttn,
@@ -362,6 +422,7 @@ export class GameDb {
         seat: row.seat,
         playerId: row.player_id,
         handle: row.handle ?? "",
+        kind: (row.kind as PlayerKind) ?? PlayerKind.HUMAN,
       })),
     };
   }
@@ -385,29 +446,32 @@ export class GameDb {
   playerProfile(playerId: string) {
     const player = this.#db
       .query(
-        `SELECT player_id, handle, is_robot, created_at FROM players WHERE player_id = ?`
+        `SELECT player_id, handle, kind, created_at FROM players WHERE player_id = ?`
       )
       .get(playerId) as {
       player_id: string;
       handle: string;
-      is_robot: number;
+      kind: string;
       created_at: number;
     } | null;
     if (!player) {
       return null;
     }
     const ratings = this.#db
-      .query(`SELECT pool, rating, games, wins FROM ratings WHERE player_id = ?`)
+      .query(
+        `SELECT pool, rating, games, wins, draws FROM ratings WHERE player_id = ?`
+      )
       .all(playerId) as Array<{
       pool: string;
       rating: number;
       games: number;
       wins: number;
+      draws: number;
     }>;
     return {
       playerId: player.player_id,
       handle: player.handle || "anonymous",
-      isRobot: player.is_robot === 1,
+      kind: (player.kind as PlayerKind) ?? PlayerKind.HUMAN,
       createdAt: player.created_at,
       ratings: ratings.map((row) => ({ ...row, rating: Math.round(row.rating) })),
     };

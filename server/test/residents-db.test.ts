@@ -370,12 +370,23 @@ describe("database: identities, handles, archive, elo", () => {
     expect(archived?.winnerSeat).toBe(0);
     expect(archived?.players.length).toBe(2);
 
+    // Every player is given a handle on arrival, so every leaderboard row
+    // is a real, clickable identity - no "anonymous" rows to filter out.
+    expect(db.leaderboard("3x3x2").length).toBe(2);
+    db.claimHandle("alice", "alice");
+    db.claimHandle("bob", "bob");
+
     // Public rows carry handles only - never playerIds.
     const board = db.leaderboard("3x3x2");
     expect(board.length).toBe(2);
     expect(Object.keys(board[0])).not.toContain("playerId");
-    expect(board[0].rating).toBeGreaterThan(1000); // the winner leads
+    expect(board[0].handle).toBe("alice"); // the winner leads
+    expect(board[0].rating).toBeGreaterThan(1000);
+    expect(board[0].wins).toBe(1);
+    expect(board[0].losses).toBe(0);
+    expect(board[0].winRate).toBe(100);
     expect(board[1].rating).toBeLessThan(1000);
+    expect(board[1].losses).toBe(1);
     // Every game also settles the difficulty-weighted global pool.
     expect(db.pools()).toEqual(["3x3x2", "global"]);
     const global = db.leaderboard("global");
@@ -385,6 +396,13 @@ describe("database: identities, handles, archive, elo", () => {
     const myGames = db.playerGames("alice");
     expect(myGames.length).toBe(1);
     expect(myGames[0].gameId).toBe("g1");
+
+    // Anyone can look up a player's games by their public handle, which is
+    // what makes another player's game replayable.
+    const byHandle = db.gamesByHandle("ALICE");
+    expect(byHandle.length).toBe(1);
+    expect(byHandle[0].ttn).toBe(archived?.ttn as string);
+    expect(db.gamesByHandle("nobody-here")).toEqual([]);
   });
 
   test("handles unavailable without a db", async () => {

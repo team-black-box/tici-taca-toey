@@ -7,6 +7,7 @@ import {
   MessageTypes,
   PlayerConnection,
   RobotCapabilities,
+  PlayerKind,
 } from "../src/model";
 
 class FakeConnection implements PlayerConnection {
@@ -88,6 +89,8 @@ describe("robot registration", () => {
       type: MessageTypes.REGISTER_ROBOT,
       name: "r1",
       playerId: "r1",
+      // Robots are badged as machines everywhere they appear.
+      kind: PlayerKind.ROBOT,
     });
     expect(engine.robots["r1"].capabilities).toEqual(ANY_GAME);
   });
