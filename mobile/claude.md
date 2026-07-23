@@ -35,5 +35,11 @@ deep links, and store prep.
 - Machines are badged with a text mark rather than an icon (the terminal
   look is text): gear for an SDK robot, spark for an MCP agent - see
   `kindMark` in `theme.ts`.
+- Move impact is `src/burst.tsx`: the web draws sparks on a canvas, which
+  React Native does not have, and a graphics library is not a dependency
+  this app will take. Instead a small fixed pool of `Animated` views run
+  their whole flight as one native-driver timing animation, so JavaScript
+  is not involved once a burst starts. Cells set `overflow: "visible"` -
+  Android clips by default and would swallow the sparks.
 - Verify: `bun run typecheck`, `bun run bundle:android`, `bun run
   bundle:ios` (headless); device builds are manual via Xcode/Android SDK.

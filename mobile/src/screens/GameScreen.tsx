@@ -23,6 +23,7 @@ import {
 import { sequenceCounts } from "../rules";
 import { Avatar, Badge, Btn, Clock, KindMark, styles as ui } from "../ui";
 import { GlassPill } from "../glass";
+import { Burst } from "../burst";
 import {
   useAppSelector,
   makeMove,
@@ -132,8 +133,18 @@ const Board = ({ game, you }: { game: Game; you: string }) => {
                   borderWidth: 1,
                   borderColor: winning ? C.accent : C.border,
                   backgroundColor: winning ? C.accentSoft : C.panel,
+                  // Sparks fly past the cell edge; Android clips overflow
+                  // by default, so say so explicitly.
+                  overflow: "visible",
                 }}
               >
+                {struck === `${x}:${y}` && seat >= 0 && (
+                  <Burst
+                    active
+                    color={C.syms[seat % 10]}
+                    scale={cell}
+                  />
+                )}
                 <StrikeCell
                   active={struck === `${x}:${y}`}
                   style={{ alignItems: "center", justifyContent: "center" }}
