@@ -240,5 +240,7 @@ game endpoint). The web client then connects via its same-origin
 `wss://<host>/ws` fallback - no build-time server URL. `HOST=127.0.0.1`
 binds behind the reverse proxy (Caddy terminates TLS); `PORT` picks the
 port; `TLS_CERT`/`TLS_KEY` exist for proxyless setups. `GET /health`
-returns player/game/robot counts for monitoring. Full box runbook,
+returns the running release plus player/game/robot counts for monitoring -
+the version comes from the `VERSION` file at the artifact root (or
+`TTT_VERSION`), and reads `dev` in a checkout. Full box runbook,
 security stance, and backups: [`DEPLOYMENT.md`](../DEPLOYMENT.md).

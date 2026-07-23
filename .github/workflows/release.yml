@@ -48,9 +48,12 @@ jobs:
 
       # TTT_SERVER_URL stays unset on purpose: production is single-origin,
       # so the client uses its same-origin wss://<host>/ws fallback and no
-      # server URL is baked into the bundle.
+      # server URL is baked into the bundle. TTT_VERSION is inlined so the
+      # running app can say which release it is.
       - name: Build web bundle
         working-directory: web
+        env:
+          TTT_VERSION: ${{ github.event.release.tag_name || inputs.tag }}
         run: bun run build
 
       - name: Verify asset paths are absolute

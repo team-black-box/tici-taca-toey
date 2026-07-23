@@ -26,6 +26,7 @@ import {
 } from "../common/model";
 import { HeartIcon } from "../common/icons";
 import { setPlayerKey } from "../state/identity";
+import { APP_VERSION, RELEASE_URL } from "../common/version";
 
 export default function App() {
   const { type, gameId } = useRoute();
@@ -151,6 +152,14 @@ export default function App() {
             {" · "}
             <a className="footer-link" href="/terms.html">
               terms
+            </a>
+            {" · "}
+            <a
+              className="footer-link"
+              href={RELEASE_URL}
+              title="the release this page was built from"
+            >
+              {APP_VERSION}
             </a>
           </>
         ) : (

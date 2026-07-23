@@ -3,8 +3,8 @@ import { GameDb, GLOBAL_POOL } from "./db";
 import { startResidents } from "./residents";
 import { createStaticHandler } from "./static";
 import { handleMcpRequest, mcpSessionCount, sweepMcpSessions } from "./mcp";
-import { existsSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import {
   ErrorCodes,
   GameEngine,
@@ -24,6 +24,20 @@ console.log(`
    | $$    /$$$$$$|  $$$$$$/ /$$$$$$      | $$  | $$  | $$|  $$$$$$/| $$  | $$        | $$  |  $$$$$$/| $$$$$$$$    | $$
    |__/   |______/ \\______/ |______/      |__/  |__/  |__/ \\______/ |__/  |__/        |__/   \\______/ |________/    |__/
 `);
+
+// Which release is running. The deploy artifact carries a VERSION file at
+// its root (one level above server/), so /health can answer "what is live?"
+// without an ssh session. A dev checkout has no such file.
+const VERSION = (() => {
+  if (process.env.TTT_VERSION) {
+    return process.env.TTT_VERSION;
+  }
+  try {
+    return readFileSync(join(import.meta.dir, "..", "..", "VERSION"), "utf8").trim();
+  } catch {
+    return "dev";
+  }
+})();
 
 const PORT = Number(process.env.PORT ?? 8080);
 // Production binds 127.0.0.1 behind the reverse proxy; dev binds everywhere
@@ -162,6 +176,7 @@ const server = Bun.serve<SocketData>({
     if (url.pathname === "/health") {
       return json({
         status: "ok",
+        version: VERSION,
         players: Object.keys(engine.players).length,
         games: Object.keys(engine.games).length,
         robots: Object.keys(engine.robots).length,
@@ -352,5 +367,5 @@ process.on("unhandledRejection", (reason) => {
 
 log(engine);
 console.log(
-  `tici-taca-toey server listening on ${tls ? "wss" : "ws"}://localhost:${server.port}`
+  `tici-taca-toey ${VERSION} listening on ${tls ? "wss" : "ws"}://localhost:${server.port}`
 );

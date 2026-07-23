@@ -86,6 +86,12 @@ Run from inside `web/`:
 - `src/features/` - one folder per UI feature, unchanged from the 2020
   layout: header, player-persona, start, join, game (board/players/status),
   listing, share.
+- The running release is shown in the footer and links to its GitHub
+  release page (`src/common/version.ts`). `TTT_VERSION` is inlined at build
+  time by `--env 'TTT_*'`, so it must stay a bare `process.env.TTT_VERSION`
+  reference; local builds have no tag and read `dev`. The server reports
+  the same value at `/health`, so "what is live?" is answerable from either
+  the page or a curl.
 - Server URL resolution (`src/state/socket.ts`): `TTT_SERVER_URL` env var
   inlined at build time (`bun build --env 'TTT_*'`), else
   `ws://localhost:8080` on localhost, else same-origin `wss://<host>/ws`.
