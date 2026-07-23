@@ -142,6 +142,14 @@ export default function App() {
             Made with <HeartIcon className="heart" /> in Bengaluru, India
             {" · "}
             <Help />
+            {" · "}
+            <a className="footer-link" href="/privacy.html">
+              privacy
+            </a>
+            {" · "}
+            <a className="footer-link" href="/terms.html">
+              terms
+            </a>
           </>
         ) : (
           <span className="reconnecting">reconnecting to server&hellip;</span>

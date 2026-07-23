@@ -772,3 +772,12 @@ select:focus-visible {
   .stage { order: -1; }
   .persona input { width: 140px; }
 }
+
+.footer-link {
+  color: var(--fg-dim);
+  text-decoration: none;
+}
+
+.footer-link:hover {
+  color: var(--accent);
+}

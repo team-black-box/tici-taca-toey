@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#050905" />
+    <title>Privacy - Tici Taca Toey</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      :root {
+        --bg: #050905;
+        --panel: #0a140a;
+        --fg: #b7f7c6;
+        --fg-dim: #62895f;
+        --accent: #00ff66;
+        --border: #1e3320;
+        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      body {
+        margin: 0;
+        padding: 32px 20px 64px;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--mono);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      main { max-width: 680px; margin: 0 auto; }
+      a { color: var(--accent); }
+      h1 { font-size: 22px; color: var(--accent); margin: 0 0 4px; }
+      h2 { font-size: 15px; color: var(--accent); margin: 32px 0 8px; }
+      h2::before { content: "> "; }
+      .sub { color: var(--fg-dim); margin: 0 0 32px; }
+      ul { padding-left: 20px; }
+      li { margin-bottom: 6px; }
+      .panel {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        padding: 14px 18px;
+        margin: 24px 0;
+      }
+      footer {
+        margin-top: 48px;
+        color: var(--fg-dim);
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>privacy</h1>
+      <p class="sub">
+        Tici Taca Toey, operated by TeamBlackBox Private Limited.
+        Last updated 23 July 2026.
+      </p>
+
+      <div class="panel">
+        The short version: you never give us your name, email, or a
+        password, because the game never asks for one. There are no
+        analytics, no advertising, and no third-party trackers anywhere in
+        the app.
+      </div>
+
+      <h2>what is stored on your device</h2>
+      <ul>
+        <li>
+          A <b>player key</b> - a long random string your browser or phone
+          generates. It is your account. It never leaves your device except
+          to prove to the server that you are the same player as last time.
+        </li>
+        <li>Your chosen handle, so it can be restored when you return.</li>
+      </ul>
+      <p>
+        Clearing your browser storage, or deleting the app, discards that
+        key. There is no recovery: a new key is simply a new player.
+      </p>
+
+      <h2>what is stored on the server</h2>
+      <ul>
+        <li>
+          A random player id, and the <b>SHA-256 hash</b> of your player
+          key - never the key itself.
+        </li>
+        <li>Your handle, if you claim one. Handles are public.</li>
+        <li>
+          Finished games: the moves as a notation line, who played, and when.
+        </li>
+        <li>Your rating, per board configuration.</li>
+      </ul>
+
+      <h2>what is not stored, anywhere</h2>
+      <ul>
+        <li>No name, email address, phone number, or password.</li>
+        <li>No advertising or analytics identifiers, and no cookies.</li>
+        <li>
+          No web server access logs, so your IP address is not retained.
+          The server logs only operational counts and errors.
+        </li>
+      </ul>
+
+      <h2>what is public</h2>
+      <ul>
+        <li>Handles and ratings on the leaderboard.</li>
+        <li>
+          Finished games are replayable from their notation, by anyone with
+          the link.
+        </li>
+        <li>
+          A public dataset of game notation is published for people learning
+          to train game-playing models. It contains board sizes and move
+          sequences only - <b>no player ids, handles, or timestamps</b>.
+        </li>
+      </ul>
+
+      <h2>children</h2>
+      <p>
+        The game is suitable for all ages but is not directed at children,
+        and we knowingly collect nothing from anyone.
+      </p>
+
+      <h2>your choices</h2>
+      <p>
+        Stop playing at any time; clearing local storage abandons the
+        identity. To have a handle or archived games removed, get in touch
+        and we will delete them.
+      </p>
+
+      <h2>contact</h2>
+      <p>
+        Open an issue at
+        <a href="https://github.com/team-black-box/tici-taca-toey/issues"
+          >github.com/team-black-box/tici-taca-toey</a
+        >.
+      </p>
+
+      <footer>
+        <a href="/">&lt; back to the game</a> ·
+        <a href="/terms.html">terms</a>
+      </footer>
+    </main>
+  </body>
+</html>
