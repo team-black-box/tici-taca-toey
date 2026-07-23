@@ -24,7 +24,13 @@ const rpc = async (
     },
     body: JSON.stringify({ jsonrpc: "2.0", id: nextId++, method, params }),
   });
-  return { response, body: await response.json() };
+  return {
+    response,
+    body: (await response.json()) as {
+      result?: Record<string, unknown>;
+      error?: { message: string };
+    },
+  };
 };
 
 const callTool = async (name: string, args: Record<string, unknown> = {}) => {
@@ -186,9 +192,7 @@ describe("MCP over HTTP", () => {
       name: "list_games",
       arguments: {},
     });
-    expect((body as { error?: { message: string } }).error?.message).toMatch(
-      /session/i
-    );
+    expect(body.error?.message).toMatch(/session/i);
   });
 
   test("health reports the live MCP session count", async () => {
