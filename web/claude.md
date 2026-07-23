@@ -81,6 +81,18 @@ Run from inside `web/`:
 - Social unfurls: `index.html` carries OG/Twitter meta and
   `public/og.png` (1200x630, regenerate from the logo art if the identity
   changes); `App.tsx` sets per-route `document.title`.
+- Move impact (`src/common/particles.ts` + the canvas in `Board.tsx`): a
+  hand-rolled canvas particle engine - sparks with motion trails, a quick
+  shockwave ring, and glyph debris, drawn additively so overlaps bloom like
+  phosphor. The burst takes its colour from the rendered cell, so team
+  colours come along for free. Two things to preserve: velocities are
+  **px per second** multiplied by the frame delta (the first cut moved by
+  velocity per *frame*, so sparks left the canvas in one tick and nothing
+  was ever visible), and the effect's layout hook depends on the board
+  existing - with an empty dependency list it bailed once on a lobby with
+  no game and never ran again. The loop releases its frame callback when
+  nothing is alive, and clears on `visibilitychange` so a backgrounded tab
+  does not come back to a frozen burst.
 - The logo is an inline SVG component (`src/common/logo.tsx`), mirrored as
   `public/favicon.svg` - keep the two in sync.
 - `src/features/` - one folder per UI feature, unchanged from the 2020
