@@ -33,9 +33,20 @@ const resolveServerUrl = (): string => {
   return `${protocol === "https:" ? "wss" : "ws"}://${host}/ws`;
 };
 
-// The server's HTTP API (leaderboard, replays) lives on the same host.
-export const getServerHttpBase = (): string =>
-  resolveServerUrl().replace(/^ws/, "http");
+// The server's HTTP API (leaderboard, player games) lives at the origin
+// root. The socket URL carries a path in the same-origin case
+// (wss://host/ws), so returning it verbatim would send fetches to
+// /ws/api/... - which misses and falls back to the SPA HTML, leaving the
+// leaderboard mysteriously empty in production while it worked in dev
+// (ws://localhost:8080, no path). Take the origin only.
+export const getServerHttpBase = (): string => {
+  const httpUrl = resolveServerUrl().replace(/^ws/, "http");
+  try {
+    return new URL(httpUrl).origin;
+  } catch {
+    return httpUrl;
+  }
+};
 
 interface SocketHandlers {
   onMessage: (data: unknown) => void;

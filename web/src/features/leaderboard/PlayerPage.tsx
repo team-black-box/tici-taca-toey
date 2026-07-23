@@ -126,9 +126,10 @@ const PlayerPage = ({ handle }: { handle: string }) => {
                 <span>{describe(game.ttn)}</span>
               </div>
             </div>
-            <div className="tile-meta">
-              {game.players.map((player) => (
+            <div className="tile-side">
+              {game.players.map((player, index) => (
                 <span key={player.seat} className="table-handle">
+                  {index > 0 && <span className="dim">vs&nbsp;</span>}
                   {player.handle}
                   <KindIcon kind={player.kind} />
                 </span>

@@ -111,6 +111,11 @@ export const makeMove = (
   dispatch(makeMoveAction);
 };
 
+// Concede an in-progress game ("gg").
+export const forfeit = (gameId: string) => {
+  dispatch({ type: MessageTypes.FORFEIT, gameId });
+};
+
 export const setActiveGame = (gameId: string) => {
   dispatch({ type: MessageTypes.SET_ACTIVE_GAME, gameId });
 };

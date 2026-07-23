@@ -62,7 +62,12 @@ connection-scoped `playerId`, a `gameId` (generated if absent), and the
 connection, then runs it through the engine.
 
 Message types: `REGISTER_PLAYER`, `REGISTER_ROBOT`, `REQUEST_ROBOT`,
-`START_GAME`, `JOIN_GAME`, `MAKE_MOVE`, `SPECTATE_GAME`, `LIST_GAMES`
+`START_GAME`, `JOIN_GAME` (a spectator may send one to take an open seat -
+they are dropped from the spectator list so they are not counted twice),
+`MAKE_MOVE`, `FORFEIT` (concede an in-progress game: two sides left, the
+other wins; more, the game ends attributed to the forfeiter - not written
+to the TTN corpus since a forfeited board has a winner but no winning
+line), `SPECTATE_GAME`, `LIST_GAMES`
 (returns lobby summaries - name, board, human/robot/spectator counts -
 for WAITING/IN_PROGRESS games, sent only to the requester; clients poll
 ~5s), `LIST_MY_GAMES` (the requester's finished games from the archive,

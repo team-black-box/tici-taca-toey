@@ -78,6 +78,11 @@ export interface MakeMoveMessage {
   gameId: string;
 }
 
+export interface ForfeitMessage {
+  type: MessageTypes.FORFEIT;
+  gameId: string;
+}
+
 export type Message =
   | RegisterPlayerMessage
   | StartGameMessage
@@ -88,7 +93,8 @@ export type Message =
   | ListGamesMessage
   | ListMyGamesMessage
   | ClaimHandleMessage
-  | MakeMoveMessage;
+  | MakeMoveMessage
+  | ForfeitMessage;
 
 export interface GameError {
   error: ErrorCodes;

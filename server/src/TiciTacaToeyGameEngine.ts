@@ -509,6 +509,16 @@ class TiciTacaToeyGameEngine implements GameEngine {
           }
           break;
         }
+        case MessageTypes.FORFEIT: {
+          const game = this.games[message.gameId];
+          if (!game || game.status !== GameStatus.GAME_IN_PROGRESS) {
+            return fail(ErrorCodes.GAME_NOT_FOUND);
+          }
+          if (!game.players.includes(message.playerId)) {
+            return fail(ErrorCodes.PLAYER_NOT_PART_OF_GAME);
+          }
+          break;
+        }
         default:
           return fail(ErrorCodes.BAD_REQUEST);
       }
@@ -732,6 +742,11 @@ class TiciTacaToeyGameEngine implements GameEngine {
         const game: Game = {
           ...existingGame,
           players: updatedPlayersList,
+          // A spectator taking a seat stops being a spectator, or they
+          // would sit in both lists and be counted twice.
+          spectators: existingGame.spectators.filter(
+            (id) => id !== message.playerId
+          ),
           status: gameReadyToStart
             ? GameStatus.GAME_IN_PROGRESS
             : GameStatus.WAITING_FOR_PLAYERS,
@@ -828,6 +843,52 @@ class TiciTacaToeyGameEngine implements GameEngine {
           if (nextPlayer && !game.timers[nextPlayer].isRunning) {
             (game.timers[nextPlayer] as Timer).start(this);
           }
+        }
+        break;
+      }
+      case MessageTypes.FORFEIT: {
+        const game = this.games[message.gameId];
+        if (!game || game.status !== GameStatus.GAME_IN_PROGRESS) {
+          break;
+        }
+        stopAllTimers(game);
+        const teamOf = (playerId: string) =>
+          teamOfSeat(game.players.indexOf(playerId), game.teamCount);
+        const forfeiterTeam = teamOf(message.playerId);
+        const opponents = game.players.filter(
+          (playerId) => teamOf(playerId) !== forfeiterTeam
+        );
+        const opponentTeams = new Set(opponents.map(teamOf));
+        // Exactly one side left standing wins outright; a forfeit with two
+        // or more other sides ends the game, attributed to the forfeiter.
+        if (opponentTeams.size === 1) {
+          const winner = opponents[0];
+          const completed: Game = {
+            ...game,
+            status: GameStatus.GAME_WON,
+            winner,
+            winningTeam: game.teamCount > 0 ? teamOf(winner) : -1,
+            turn: "",
+            completedAt: Date.now(),
+          };
+          completed.notation = encodeGame(completed);
+          this.games[message.gameId] = completed;
+          // Deliberately not logged to the TTN corpus: a forfeited board
+          // has a winner but no winning line, which is misleading training
+          // data. It is still archived for history, replay, and ratings.
+          this.archiveGame(completed);
+          this.releaseRobotSeats(completed.gameId);
+        } else {
+          const completed: Game = {
+            ...game,
+            status: GameStatus.GAME_ABANDONED,
+            turn: "",
+            completedAt: Date.now(),
+          };
+          completed.notation = encodeGame(completed);
+          this.games[message.gameId] = completed;
+          this.archiveGame(completed, message.playerId);
+          this.releaseRobotSeats(completed.gameId);
         }
         break;
       }
@@ -1305,6 +1366,27 @@ class TiciTacaToeyGameEngine implements GameEngine {
             );
           });
         break;
+      case MessageTypes.FORFEIT: {
+        const game = this.games[message.gameId];
+        if (!game) {
+          break;
+        }
+        const connectedPlayers = getConnectedPlayers(this.players, game);
+        const connectedSpectators = getConnectedSpectators(this.players, game);
+        const response: Response = {
+          // A decisive forfeit reads as GAME_COMPLETE; a multi-side one
+          // ends the game as an abandon, the shape clients already handle.
+          type:
+            game.status === GameStatus.GAME_WON
+              ? MessageTypes.GAME_COMPLETE
+              : MessageTypes.PLAYER_DISCONNECT,
+          game: { ...game, timers: getTimerBaseFromGame(game) },
+          players: getPlayers(connectedPlayers),
+          spectators: getPlayers(connectedSpectators),
+        };
+        sendResponseToPlayers(response, connectedPlayers, connectedSpectators);
+        break;
+      }
       case MessageTypes.START_GAME:
       case MessageTypes.JOIN_GAME:
       case MessageTypes.REQUEST_ROBOT:

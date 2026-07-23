@@ -104,6 +104,12 @@ Run from inside `web/`:
   reference; local builds have no tag and read `dev`. The server reports
   the same value at `/health`, so "what is live?" is answerable from either
   the page or a curl.
+- The HTTP API base (`getServerHttpBase` in `src/state/socket.ts`) is the
+  socket URL's **origin**, not the socket URL itself: the same-origin
+  fallback carries a `/ws` path (`wss://host/ws`), and returning that
+  verbatim once sent every `/api/*` fetch to `/ws/api/...`, which misses
+  and falls back to the SPA HTML - the leaderboard was silently empty in
+  production while it worked in dev (`ws://localhost:8080`, no path).
 - Server URL resolution (`src/state/socket.ts`): `TTT_SERVER_URL` env var
   inlined at build time (`bun build --env 'TTT_*'`), else
   `ws://localhost:8080` on localhost, else same-origin `wss://<host>/ws`.

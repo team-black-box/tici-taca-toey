@@ -138,6 +138,14 @@ export interface MakeMoveMessage {
   playerId: string;
 }
 
+// Concede an in-progress game.
+export interface ForfeitMessage {
+  type: MessageTypes.FORFEIT;
+  gameId: string;
+  connection?: PlayerConnection;
+  playerId: string;
+}
+
 export interface PlayerDisconnectMessage {
   type: MessageTypes.PLAYER_DISCONNECT;
   playerId: string;
@@ -193,6 +201,7 @@ export type Message =
   | JoinGameMessage
   | SpectateGameMessage
   | MakeMoveMessage
+  | ForfeitMessage
   | PlayerDisconnectMessage
   | PlayerAbandonMessage
   | UpdateTimeMessage

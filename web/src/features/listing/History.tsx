@@ -99,12 +99,8 @@ const History = () => {
               <span>{when(game.completedAt)}</span>
             </div>
           </div>
-          <div className="tile-meta">
-            <span>
-              {game.players
-                .map((player) => player.handle)
-                .join(" vs ")}
-            </span>
+          <div className="tile-side">
+            {game.players.map((player) => player.handle).join(" vs ")}
           </div>
         </div>
       ))}

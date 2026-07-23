@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import Header from "../features/header/Header";
 import Start from "../features/start/Start";
 import Game from "../features/game/Game";
@@ -86,11 +86,24 @@ export default function App() {
     }
   }, [isSync]);
 
+  // Go to a game whenever its identity *or its mode* changes - so starting
+  // or joining one from a browse page takes you straight to it, and
+  // upgrading from spectator to player flips the URL from /spectate to
+  // /play. The ref is seeded with the mounting target so an ambient game
+  // already open does not re-navigate on mount.
+  const lastNavRef = useRef(
+    activeGame && activeGameMode ? `${activeGameMode}/${activeGame}` : ""
+  );
   useEffect(() => {
-    if (activeGame && activeGameMode && !isBrowsing && !isSync) {
-      navigate(`/${activeGameMode}/${activeGame}`);
+    if (!activeGame || !activeGameMode || isSync) {
+      return;
     }
-  }, [activeGame, activeGameMode, isBrowsing, isSync]);
+    const target = `${activeGameMode}/${activeGame}`;
+    if (target !== lastNavRef.current) {
+      lastNavRef.current = target;
+      navigate(`/${target}`);
+    }
+  }, [activeGame, activeGameMode, isSync]);
 
   useEffect(() => {
     if (isConnected && !isBrowsing && !isSync) {

@@ -317,3 +317,196 @@ describe("database migration", () => {
     db.close();
   });
 });
+
+describe("spectator upgrades to player", () => {
+  test("a spectator of a waiting game can take a seat and leaves the spectator list", async () => {
+    const engine = new TiciTacaToeyGameEngine();
+    const host = await register(engine, "host");
+    // Host starts a 3-player game so it stays WAITING after one join.
+    await engine.play({
+      type: MessageTypes.START_GAME,
+      gameId: "s1",
+      name: "watch then play",
+      boardSize: 4,
+      playerCount: 3,
+      winningSequenceLength: 3,
+      playerId: "host",
+      connection: host,
+    } as Message);
+
+    const watcher = await register(engine, "watcher");
+    await engine.play({
+      type: MessageTypes.SPECTATE_GAME,
+      gameId: "s1",
+      playerId: "watcher",
+      connection: watcher,
+    } as Message);
+    expect(engine.games["s1"].spectators).toContain("watcher");
+
+    // Upgrade: a plain JOIN_GAME (they are already viewing it).
+    await engine.play({
+      type: MessageTypes.JOIN_GAME,
+      gameId: "s1",
+      playerId: "watcher",
+      connection: watcher,
+    } as Message);
+    expect(engine.games["s1"].players).toContain("watcher");
+    // ...and they are no longer a spectator, so they are not counted twice.
+    expect(engine.games["s1"].spectators).not.toContain("watcher");
+  });
+});
+
+describe("forfeit (gg)", () => {
+  const play2p = async (engine: TiciTacaToeyGameEngine, gameId: string) => {
+    const a = await register(engine, "alice");
+    const b = await register(engine, "bob");
+    await engine.play({
+      type: MessageTypes.START_GAME,
+      gameId,
+      name: "duel",
+      boardSize: 3,
+      playerCount: 2,
+      winningSequenceLength: 3,
+      playerId: "alice",
+      connection: a,
+    } as Message);
+    await engine.play({
+      type: MessageTypes.JOIN_GAME,
+      gameId,
+      playerId: "bob",
+      connection: b,
+    } as Message);
+    return { a, b };
+  };
+
+  test("forfeiting a 1v1 hands the win to the opponent", async () => {
+    const engine = new TiciTacaToeyGameEngine();
+    await play2p(engine, "f1");
+    // alice plays one move, then bob forfeits.
+    await engine.play({
+      type: MessageTypes.MAKE_MOVE,
+      gameId: "f1",
+      coordinateX: 0,
+      coordinateY: 0,
+      playerId: "alice",
+    } as Message);
+    await engine.play({
+      type: MessageTypes.FORFEIT,
+      gameId: "f1",
+      playerId: "bob",
+    } as Message);
+    const game = engine.games["f1"];
+    expect(game.status).toBe(GameStatus.GAME_WON);
+    expect(game.winner).toBe("alice");
+    expect(game.notation).toBeDefined();
+  });
+
+  test("a forfeit win is rated, and the opponent sees GAME_COMPLETE", async () => {
+    const db = new GameDb(":memory:");
+    const engine = new TiciTacaToeyGameEngine({ db });
+    const a = await register(engine, "alice");
+    const b = await register(engine, "bob");
+    await engine.play({
+      type: MessageTypes.START_GAME,
+      gameId: "f2",
+      name: "rated forfeit",
+      boardSize: 3,
+      playerCount: 2,
+      winningSequenceLength: 3,
+      playerId: "alice",
+      connection: a,
+    } as Message);
+    await engine.play({
+      type: MessageTypes.JOIN_GAME,
+      gameId: "f2",
+      playerId: "bob",
+      connection: b,
+    } as Message);
+    await engine.play({
+      type: MessageTypes.MAKE_MOVE,
+      gameId: "f2",
+      coordinateX: 0,
+      coordinateY: 0,
+      playerId: "alice",
+    } as Message);
+    await engine.play({
+      type: MessageTypes.FORFEIT,
+      gameId: "f2",
+      playerId: "bob",
+      connection: b,
+    } as Message);
+    // The opponent's socket is told the game is over.
+    expect(a.ofType(MessageTypes.GAME_COMPLETE).length).toBeGreaterThan(0);
+    // alice claimed no handle, but ratings settle under her player id; the
+    // global pool exists and she leads it.
+    db.claimHandle("alice", "alice");
+    db.claimHandle("bob", "bob");
+    const global = db.leaderboard("global");
+    expect(global.find((r) => r.handle === "alice")?.rating).toBeGreaterThan(
+      1000
+    );
+    expect(global.find((r) => r.handle === "bob")?.rating).toBeLessThan(1000);
+  });
+
+  test("only a seated player can forfeit, and only an in-progress game", async () => {
+    const engine = new TiciTacaToeyGameEngine();
+    const { a } = await play2p(engine, "f3");
+    const outsider = await register(engine, "outsider");
+    await engine.play({
+      type: MessageTypes.FORFEIT,
+      gameId: "f3",
+      playerId: "outsider",
+      connection: outsider,
+    } as Message);
+    expect(outsider.last().error).toBe(ErrorCodes.PLAYER_NOT_PART_OF_GAME);
+    expect(engine.games["f3"].status).toBe(GameStatus.GAME_IN_PROGRESS);
+
+    // Finish it, then a forfeit is refused.
+    await engine.play({
+      type: MessageTypes.MAKE_MOVE,
+      gameId: "f3",
+      coordinateX: 0,
+      coordinateY: 0,
+      playerId: "alice",
+    } as Message);
+    await engine.play({
+      type: MessageTypes.FORFEIT,
+      gameId: "f3",
+      playerId: "alice",
+      connection: a,
+    } as Message);
+    // f3 was won by forfeit above? No - alice made a move; game still in
+    // progress with 1 move. alice forfeits -> bob wins.
+    expect(engine.games["f3"].status).toBe(GameStatus.GAME_WON);
+    expect(engine.games["f3"].winner).toBe("bob");
+  });
+
+  test("a 3-player forfeit ends the game, attributed to the forfeiter", async () => {
+    const engine = new TiciTacaToeyGameEngine();
+    const a = await register(engine, "alice");
+    const b = await register(engine, "bob");
+    const c = await register(engine, "cara");
+    await engine.play({
+      type: MessageTypes.START_GAME,
+      gameId: "f4",
+      name: "three way",
+      boardSize: 4,
+      playerCount: 3,
+      winningSequenceLength: 3,
+      playerId: "alice",
+      connection: a,
+    } as Message);
+    await engine.play({ type: MessageTypes.JOIN_GAME, gameId: "f4", playerId: "bob", connection: b } as Message);
+    await engine.play({ type: MessageTypes.JOIN_GAME, gameId: "f4", playerId: "cara", connection: c } as Message);
+    expect(engine.games["f4"].status).toBe(GameStatus.GAME_IN_PROGRESS);
+    await engine.play({
+      type: MessageTypes.FORFEIT,
+      gameId: "f4",
+      playerId: "alice",
+      connection: a,
+    } as Message);
+    // Two other sides remain, so the game ends rather than crowning one.
+    expect(engine.games["f4"].status).toBe(GameStatus.GAME_ABANDONED);
+    expect(engine.games["f4"].winner).toBe("");
+  });
+});

@@ -315,6 +315,20 @@ input::placeholder {
   box-shadow: var(--glow-soft);
 }
 
+/* Danger rules come last so they win on a `btn btn--ghost btn--danger`
+   button, which otherwise picks up the ghost hover colour. */
+.btn--danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.btn--danger:hover {
+  background: var(--danger);
+  color: var(--bg);
+  border-color: var(--danger);
+  box-shadow: 0 0 10px rgba(255, 80, 80, 0.4);
+}
+
 /* --- game stage ---------------------------------------------------------- */
 
 .stage {
@@ -538,7 +552,15 @@ input::placeholder {
   cursor: pointer;
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 10px;
+}
+
+/* The left column (badge + config) holds its width; the right column
+   (players) takes the slack and wraps. */
+.tile > :first-child {
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .tile:hover {
@@ -562,6 +584,24 @@ input::placeholder {
 .tile .badge {
   font-size: 9px;
   padding: 2px 6px;
+}
+
+/* The right-hand column of history/player cards: a player list that must
+   wrap and shrink rather than overflow the card. min-width:0 lets the
+   flex item shrink below its content; the chips (or joined text) then
+   wrap, right-aligned. */
+.tile-side {
+  min-width: 0;
+  flex-shrink: 1;
+  text-align: right;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--fg-dim);
+  overflow-wrap: anywhere;
+}
+
+.tile-side .table-handle {
+  margin-left: 8px;
 }
 
 .tile-meta {

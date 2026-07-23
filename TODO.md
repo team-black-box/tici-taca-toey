@@ -28,6 +28,13 @@ exquisite taste in design.
 
 ## Completed
 
+- Post-launch fixes (2026-07-23): the production leaderboard was empty because
+  `getServerHttpBase` kept the socket's `/ws` path, so `/api/*` fetches
+  missed - now takes the origin. Also: history/player cards no longer
+  overflow, starting a game from a browse page redirects to it, a
+  spectator can take an open seat (upgrade to player), and a player can
+  forfeit ("gg"). ([task file](./tasks/post-launch-fixes.md))
+
 - Standings, public games, and polish (2026-07-23): a sortable
   **leaderboard page** where every row opens that player's games and any
   game replays; **public games** - a game is private until its host opens

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   Pressable,
   ScrollView,
@@ -29,6 +30,8 @@ import {
   makeMove,
   requestRobot,
   openSeats,
+  joinGame,
+  forfeit,
   getShareUrl,
 } from "../state";
 import { Game, GameInteractionTypes, GameStatus } from "../model";
@@ -268,9 +271,15 @@ const GameScreen = () => {
   }
 
   const status = getStatusForViewer(game, you, players);
+  const isPlayer = game.players.includes(you);
   const canAddRobot =
+    game.status === GameStatus.WAITING_FOR_PLAYERS && isPlayer;
+  // A spectator of a game still waiting with room can take a seat.
+  const canTakeSeat =
+    !isPlayer &&
     game.status === GameStatus.WAITING_FOR_PLAYERS &&
-    game.players.includes(you);
+    game.players.length < game.playerCount;
+  const canForfeit = game.status === GameStatus.GAME_IN_PROGRESS && isPlayer;
   const shareable = [
     GameStatus.WAITING_FOR_PLAYERS,
     GameStatus.GAME_IN_PROGRESS,
@@ -339,6 +348,38 @@ const GameScreen = () => {
               onPress={() => openSeats(game.gameId, !game.openSeats)}
             />
           </View>
+        )}
+        {canTakeSeat && (
+          <Btn
+            title="TAKE A SEAT"
+            onPress={() => joinGame(game.gameId)}
+          />
+        )}
+        {canForfeit && (
+          <Pressable
+            style={{
+              borderWidth: 1,
+              borderColor: C.danger,
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              alignSelf: "flex-start",
+              marginTop: 4,
+            }}
+            onPress={() =>
+              Alert.alert("Forfeit?", "Concede this game. gg.", [
+                { text: "cancel", style: "cancel" },
+                {
+                  text: "gg, forfeit",
+                  style: "destructive",
+                  onPress: () => forfeit(game.gameId),
+                },
+              ])
+            }
+          >
+            <Text style={[MONO, { color: C.danger, fontSize: 12, letterSpacing: 1 }]}>
+              GG (FORFEIT)
+            </Text>
+          </Pressable>
         )}
 
         <Board game={game} you={you} />

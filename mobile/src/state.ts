@@ -519,6 +519,11 @@ export const requestRobot = (gameId: string, robotName?: string) => {
   dispatch({ type: MessageTypes.REQUEST_ROBOT, gameId, robotName });
 };
 
+// Concede an in-progress game ("gg").
+export const forfeit = (gameId: string) => {
+  dispatch({ type: MessageTypes.FORFEIT, gameId });
+};
+
 export const claimHandle = (handle: string) => {
   dispatch({ type: MessageTypes.CLAIM_HANDLE, handle });
 };

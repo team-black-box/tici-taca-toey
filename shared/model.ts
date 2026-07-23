@@ -244,6 +244,9 @@ export enum MessageTypes {
   START_GAME = "START_GAME",
   JOIN_GAME = "JOIN_GAME",
   MAKE_MOVE = "MAKE_MOVE",
+  // Concede an in-progress game ("gg"). Two sides: the other wins. More:
+  // the game ends, attributed to the forfeiter.
+  FORFEIT = "FORFEIT",
   SPECTATE_GAME = "SPECTATE_GAME",
   GAME_COMPLETE = "GAME_COMPLETE", // response only
   GAME_RESUMED = "GAME_RESUMED", // response only

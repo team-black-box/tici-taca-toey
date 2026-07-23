@@ -4,7 +4,7 @@ import { useAppSelector } from "../../../state/store";
 import { getLobbyRobots } from "../../../state/lobby";
 import { getActiveGame } from "../../../state/games";
 import { getCurrentPlayerId } from "../../../state/currentPlayer";
-import { requestRobot, openSeats } from "../../../state/actions";
+import { requestRobot, openSeats, joinGame, forfeit } from "../../../state/actions";
 import Share from "../../share/Share";
 import { getStatusForViewer } from "../../../common/status";
 import { sequenceCounts } from "../../../common/rules";
@@ -101,9 +101,16 @@ const Status = () => {
   if (!game) {
     return null;
   }
+  const isPlayer = game.players.includes(currentPlayerId);
   const canAddRobot =
+    game.status === GameStatus.WAITING_FOR_PLAYERS && isPlayer;
+  // A spectator watching a game that still has an open seat can take it.
+  const canTakeSeat =
+    !isPlayer &&
     game.status === GameStatus.WAITING_FOR_PLAYERS &&
-    game.players.includes(currentPlayerId);
+    game.players.length < game.playerCount;
+  const canForfeit =
+    game.status === GameStatus.GAME_IN_PROGRESS && isPlayer;
   return (
     <div className="status-row">
       <div className="game-name">{game.name}</div>
@@ -121,6 +128,28 @@ const Status = () => {
           }
         >
           {game.openSeats ? "✓ open to anyone" : "+ open to anyone"}
+        </button>
+      )}
+      {canTakeSeat && (
+        <button
+          className="btn"
+          onClick={() => joinGame(game.gameId)}
+          title="stop spectating and join as a player"
+        >
+          take a seat
+        </button>
+      )}
+      {canForfeit && (
+        <button
+          className="btn btn--ghost btn--danger"
+          onClick={() => {
+            if (window.confirm("forfeit this game? gg.")) {
+              forfeit(game.gameId);
+            }
+          }}
+          title="concede the game"
+        >
+          gg (forfeit)
         </button>
       )}
       {[GameStatus.GAME_IN_PROGRESS, GameStatus.WAITING_FOR_PLAYERS].includes(
