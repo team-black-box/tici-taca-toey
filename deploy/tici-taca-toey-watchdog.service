@@ -1,0 +1,20 @@
+# Runs the liveness watchdog once. Paired with the .timer beside it;
+# install both at /etc/systemd/system/, then:
+#   systemctl daemon-reload && systemctl enable --now tici-taca-toey-watchdog.timer
+#
+# Restarting the game server needs root, so watchdog.sh calls sudo for
+# exactly that one command - the same rule deploy.sh uses (see
+# deploy/sudoers-tici-taca-toey). No extra privileges are granted.
+
+[Unit]
+Description=Restart tici-taca-toey if it stops answering /health
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=tici
+Group=tici
+# Gives the service a tici-owned /run/tici-taca-toey-watchdog for its
+# strike counter, cleared automatically on reboot.
+RuntimeDirectory=tici-taca-toey-watchdog
+ExecStart=/opt/tici-taca-toey/current/deploy/watchdog.sh

@@ -1,0 +1,17 @@
+# Checks liveness every minute. Two consecutive misses trigger a restart,
+# so the worst case for a wedged-but-running process is ~2 minutes of
+# downtime instead of forever.
+#
+# OnBootSec is generous so the app has time to start after a reboot before
+# the watchdog forms an opinion about it.
+
+[Unit]
+Description=Check that tici-taca-toey is still answering
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1min
+Unit=tici-taca-toey-watchdog.service
+
+[Install]
+WantedBy=timers.target

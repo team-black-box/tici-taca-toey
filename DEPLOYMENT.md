@@ -43,6 +43,7 @@ Deploy artifacts live in [`deploy/`](./deploy/) and are installed once:
 | [`sites/ticitacatoey.caddy`](./deploy/sites/ticitacatoey.caddy) | `/etc/caddy/sites/` |
 | [`tici-taca-toey.service`](./deploy/tici-taca-toey.service) | `/etc/systemd/system/` |
 | [`tici-taca-toey-deploy.{service,timer}`](./deploy/) | `/etc/systemd/system/` |
+| [`tici-taca-toey-watchdog.{service,timer}`](./deploy/) | `/etc/systemd/system/` |
 | [`sudoers-tici-taca-toey`](./deploy/sudoers-tici-taca-toey) | `/etc/sudoers.d/` (0440) |
 | [`deploy.sh`](./deploy/deploy.sh) | `/opt/tici-taca-toey/deploy.sh` |
 | [`backup.sh`](./deploy/backup.sh) | run from cron |
@@ -145,6 +146,8 @@ chown -R tici:tici /opt/tici-taca-toey
 curl -fsSL $BASE/tici-taca-toey.service        -o /etc/systemd/system/tici-taca-toey.service
 curl -fsSL $BASE/tici-taca-toey-deploy.service -o /etc/systemd/system/tici-taca-toey-deploy.service
 curl -fsSL $BASE/tici-taca-toey-deploy.timer   -o /etc/systemd/system/tici-taca-toey-deploy.timer
+curl -fsSL $BASE/tici-taca-toey-watchdog.service -o /etc/systemd/system/tici-taca-toey-watchdog.service
+curl -fsSL $BASE/tici-taca-toey-watchdog.timer   -o /etc/systemd/system/tici-taca-toey-watchdog.timer
 curl -fsSL $BASE/Caddyfile                     -o /etc/caddy/Caddyfile
 mkdir -p /etc/caddy/sites
 curl -fsSL $BASE/sites/ticitacatoey.caddy      -o /etc/caddy/sites/ticitacatoey.caddy
@@ -155,6 +158,8 @@ systemctl daemon-reload
 sudo -u tici /opt/tici-taca-toey/deploy.sh      # installs the current release
 systemctl enable tici-taca-toey
 systemctl enable --now tici-taca-toey-deploy.timer
+# After the first deploy: the watchdog script ships inside the release.
+systemctl enable --now tici-taca-toey-watchdog.timer
 systemctl reload caddy
 
 ( crontab -l 2>/dev/null; echo "15 2 * * * /opt/tici-taca-toey/deploy/backup.sh" ) | crontab -
@@ -254,12 +259,43 @@ descriptors are lifted to 65536 in the unit. `/health` reports live
 to resize - and on Hetzner that is a reboot into a bigger plan, no
 migration.
 
+## Staying alive
+
+Five layers, in the order they engage:
+
+1. **The process refuses to die.** `uncaughtException` and
+   `unhandledRejection` handlers log instead of exiting; every websocket
+   payload is parse-guarded, every engine transition wrapped, every send
+   individually guarded so one dead socket cannot break a broadcast.
+2. **systemd restarts it if it does.** `Restart=always`, `RestartSec=2`.
+3. **It returns after a reboot.** `systemctl enable` covers kernel updates
+   and host migrations.
+4. **A wedged process is caught too.** systemd only sees the process
+   *exiting*, so a deadlock or stalled event loop would otherwise hang
+   forever. `deploy/watchdog.sh` runs every minute and restarts the unit
+   after two consecutive `/health` misses - worst case ~2 minutes rather
+   than indefinite. It stands down whenever systemd reports the unit as
+   anything other than `active`, so it never fights `Restart=always`, and
+   two strikes mean an ordinary deploy restart never trips it.
+5. **A bad release rolls itself back.** `deploy.sh` health-checks the new
+   release and reverts to the previous one if it does not answer.
+
+Players barely notice any of it: clients reconnect with capped exponential
+backoff, and the 60-second disconnect grace replays their games via
+`GAME_RESUMED`, so a restart mid-game costs a blink.
+
+**What is still uncovered:** the box itself. One machine means one point of
+failure - if Hetzner's host dies, nothing fails over. That is the accepted
+trade for a €6/month game server, and it is why the uptime pinger below
+matters: it is the only thing that will tell you.
+
 ## Monitoring and backups
 
 - `GET /health` returns player/game/robot counts. Point any free uptime
   pinger at `https://ticitacatoey.com/health`.
 - `journalctl -u tici-taca-toey -f` tails the server log;
-  `journalctl -u tici-taca-toey-deploy -f` shows deploy activity.
+  `journalctl -u tici-taca-toey-deploy -f` shows deploy activity, and
+  `journalctl -u tici-taca-toey-watchdog -f` shows liveness checks.
 - Nightly [`deploy/backup.sh`](./deploy/backup.sh): consistent
   `sqlite3 .backup` snapshot (safe under WAL) + `games.ttn` copy into
   `/var/backups/tici-taca-toey`, 14-day retention.
