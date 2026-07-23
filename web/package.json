@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun ./index.html",
-    "build": "bun build ./index.html --outdir=dist --minify --env 'TTT_*' && cp public/manifest.json public/robots.txt public/og.png dist/",
+    "build": "bun build ./index.html --outdir=dist --minify --public-path=/ --env 'TTT_*' && cp public/manifest.json public/robots.txt public/og.png dist/",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit"
   },

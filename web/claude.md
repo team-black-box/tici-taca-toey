@@ -29,7 +29,14 @@ Run from inside `web/`:
 - `bun run dev` - dev server with hot reload on port 3000 (start the game
   server too: `bun run dev` inside `server/`).
 - `bun run build` - production bundle into `dist/` (static files, deploy
-  anywhere).
+  anywhere). **`--public-path=/` is load-bearing**: without it Bun emits
+  relative asset URLs (`./index-<hash>.js`), which a browser resolves
+  against the current path - so `/play/<id>` requests
+  `/play/index-<hash>.js`, misses, gets the SPA fallback's HTML where
+  JavaScript was expected, and renders a blank page. Every deep link
+  (share, spectate, replay) breaks while `/` looks fine. This shipped once
+  in v1.0.1; both CI workflows now fail the build if any asset path in
+  `dist/index.html` starts with `./`.
 - `bun test` - tests (QR encoder fixtures and invariants).
 - `bun run typecheck` - TypeScript check.
 

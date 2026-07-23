@@ -46,6 +46,19 @@ jobs:
       - name: Build
         working-directory: web
         run: bun run build
+      - name: Verify asset paths are absolute
+        working-directory: web
+        # Relative asset URLs resolve against the current path, so a page
+        # served at /play/<id> would request /play/index-<hash>.js, miss,
+        # fall back to index.html, and render blank. This shipped once.
+        run: |
+          if grep -qE '(src|href)="\./' dist/index.html; then
+            echo "dist/index.html contains relative asset paths - deep links would break"
+            grep -oE '(src|href)="[^"]*"' dist/index.html
+            exit 1
+          fi
+          echo "all asset paths are absolute"
+
 
   sdk:
     name: SDK and robots
