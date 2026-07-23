@@ -10,7 +10,7 @@ TTN corpus live on the box disk.
 ticitacatoey.com ──> Caddy (:443, auto TLS) ──> bun server (127.0.0.1:8080)
                                                   ├─ current/web/dist (static, SPA fallback)
                                                   ├─ /ws websocket (game protocol)
-                                                  ├─ /health /leaderboard /games /players /dataset
+                                                  ├─ /health /dataset /mcp /api/*
                                                   ├─ /mcp (agents, streamable HTTP)
                                                   └─ data/  (sqlite + games.ttn)
 ```

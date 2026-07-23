@@ -105,6 +105,18 @@ export const RobotIcon = ({ className }: IconProps) => (
   </Svg>
 );
 
+// An MCP-connected AI agent: a terminal prompt with a spark. Deliberately
+// unlike RobotIcon - an agent is a different kind of machine from an SDK
+// robot, and the roster should say so at a glance.
+export const AgentIcon = ({ className }: IconProps) => (
+  <Svg className={className} fill="none" stroke="currentColor">
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M7 10l2.5 2L7 14" />
+    <line x1="12" y1="15" x2="16" y2="15" />
+    <path d="M17.2 6.2l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5z" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
 export const GlassesIcon = ({ className }: IconProps) => (
   <Svg className={className} fill="none" stroke="currentColor">
     <circle cx="6.5" cy="14.5" r="3.5" />
@@ -112,5 +124,11 @@ export const GlassesIcon = ({ className }: IconProps) => (
     <path d="M10 14.5c0.6-1.2 3.4-1.2 4 0" />
     <path d="M3 14l1-5" />
     <path d="M21 14l-1-5" />
+  </Svg>
+);
+
+export const CaretIcon = ({ className }: IconProps) => (
+  <Svg className={className} fill="none" stroke="currentColor">
+    <path d="M7 10l5 5 5-5" />
   </Svg>
 );

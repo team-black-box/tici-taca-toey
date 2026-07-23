@@ -7,6 +7,8 @@ import Listing from "../features/listing/Listing";
 import Leaderboard from "../features/listing/Leaderboard";
 import History from "../features/listing/History";
 import Replay from "../features/replay/Replay";
+import LeaderboardPage from "../features/leaderboard/LeaderboardPage";
+import PlayerPage from "../features/leaderboard/PlayerPage";
 import Help from "../features/help/Help";
 import StatusLine from "../features/feedback/StatusLine";
 import { useRoute, navigate } from "../common/router";
@@ -40,6 +42,11 @@ export default function App() {
 
   const isReplay = type === "replay";
   const isSync = type === "sync";
+  // Browse routes: the full standings, and one player's finished games.
+  const isLeaderboard = type === "leaderboard";
+  const isPlayer = type === "player";
+  // Any route that takes over the stage instead of showing a game.
+  const isBrowsing = isReplay || isLeaderboard || isPlayer;
   const activeGameName = useAppSelector((state) =>
     state.currentPlayer.active
       ? state.games[state.currentPlayer.active]?.name
@@ -49,10 +56,14 @@ export default function App() {
   useEffect(() => {
     document.title = isReplay
       ? "replay - tici-taca-toey"
+      : isLeaderboard
+      ? "leaderboard - tici-taca-toey"
+      : isPlayer && gameId
+      ? `${gameId} - tici-taca-toey`
       : activeGameName
       ? `${activeGameName} - tici-taca-toey`
       : "tici-taca-toey";
-  }, [isReplay, activeGameName]);
+  }, [isReplay, isLeaderboard, isPlayer, gameId, activeGameName]);
 
   useEffect(() => {
     // Importing an identity: /sync#<playerKey> - the fragment never reaches
@@ -76,13 +87,13 @@ export default function App() {
   }, [isSync]);
 
   useEffect(() => {
-    if (activeGame && activeGameMode && !isReplay && !isSync) {
+    if (activeGame && activeGameMode && !isBrowsing && !isSync) {
       navigate(`/${activeGameMode}/${activeGame}`);
     }
-  }, [activeGame, activeGameMode, isReplay, isSync]);
+  }, [activeGame, activeGameMode, isBrowsing, isSync]);
 
   useEffect(() => {
-    if (isConnected && !isReplay && !isSync) {
+    if (isConnected && !isBrowsing && !isSync) {
       if (type && gameId) {
         // A finished game is removed from `playing`, but the URL still
         // points at it - so without the completed check this re-fires
@@ -117,7 +128,7 @@ export default function App() {
     activeGame,
     isConnected,
     activeGameStatus,
-    isReplay,
+    isBrowsing,
     isSync,
   ]);
 
@@ -131,7 +142,15 @@ export default function App() {
           <Leaderboard />
         </aside>
         <section className="stage">
-          {isReplay && gameId ? <Replay ttn={gameId} /> : <Game />}
+          {isReplay && gameId ? (
+            <Replay ttn={gameId} />
+          ) : isLeaderboard ? (
+            <LeaderboardPage />
+          ) : isPlayer && gameId ? (
+            <PlayerPage handle={gameId} />
+          ) : (
+            <Game />
+          )}
         </section>
         <aside className="rail">
           <Listing />

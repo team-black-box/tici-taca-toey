@@ -40,18 +40,19 @@ identity and the lobby:
 - [x] Engine: kind on attach/broadcast, agent counts in lobby summaries.
 - [x] MCP sessions register as agents; server strips client `kind`.
 - [x] Server: `/handles/<handle>/games` public browse endpoint.
-- [ ] Web: `/leaderboard` route with a sortable table; `/player/<handle>`
+- [x] Web: `/leaderboard` route with a sortable table; `/player/<handle>`
       games list; agent icon wherever the robot icon appears.
-- [ ] Public games: a `public` flag on START_GAME, joinable from the lobby
-      (today the lobby can only spectate; joining needs a link).
+- [x] Public games: OPEN_SEATS, joinable from the lobby when open.
+- [x] Default handles in the house style, assigned on arrival.
+- [x] Move-impact animation and lobby activity indicators.
 - [ ] Mobile: agent badge, and the public-games list.
 
 ## Open Questions
 
-- Should every game be public by default (they are already all listed and
-  spectatable), with "private" as the opt-in? Leaning yes: it matches
-  what the lobby already shows, and "start public game" then just means
-  "let strangers take a seat" rather than a new visibility concept.
+Resolved (user, 2026-07-23): every game is already listed and spectatable,
+so "public" is not a visibility concept - it means *let strangers take a
+seat*. A game is closed until its host opens it, exactly like a robot only
+joining when asked.
 
 ## Files Likely To Change
 
@@ -66,6 +67,19 @@ router is a single `/:type?/:gameId?`, so `/leaderboard` and
 `/player/<handle>` are new `type` values handled in App.tsx.
 
 ## Checkpoints
+
+- 2026-07-23 17:11 IST - Web done and verified in the browser: sortable standings table
+  (clicking a header flips the caret and reorders), click-through to
+  /player/<handle>, and replaying another player's game. Public games
+  verified over live sockets - a lobby join is refused with
+  GAME_IS_NOT_OPEN until the host opens the game, then the stranger is
+  seated. Default handles are landing (tank-7jh, persephone-s8y). Move
+  strikes fire for both my move and the robot's reply; lobby tiles pulse
+  with marching dots while a game is live.
+  **Found and fixed a route collision**: the client route /leaderboard was
+  being shadowed by the server's API path of the same name, so the page
+  rendered raw JSON. The read API now lives under /api/*, which makes such
+  a collision structurally impossible. Mobile is the remaining scope.
 
 - 2026-07-23 16:49 IST - Server + protocol done: PlayerKind everywhere, draws tracked,
   full leaderboard stats, gamesByHandle, agent registration, and the

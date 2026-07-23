@@ -33,6 +33,7 @@ const Start = () => {
   const [winningSequenceLength, setWinningSequenceLength] = useState("3");
   const [winningSequenceCount, setWinningSequenceCount] = useState("1");
   const [teamCount, setTeamCount] = useState("0");
+  const [openToStrangers, setOpenToStrangers] = useState(false);
   const [timed, setTimed] = useState(false);
   const [timePerPlayer, setTimePerPlayer] = useState("180000");
   const [incrementPerPlayer, setIncrementPerPlayer] = useState("1000");
@@ -53,7 +54,8 @@ const Start = () => {
       Number(winningSequenceCount) > 1
         ? Number(winningSequenceCount)
         : undefined,
-      chosenTeams > 0 ? chosenTeams : undefined
+      chosenTeams > 0 ? chosenTeams : undefined,
+      openToStrangers
     );
   };
 
@@ -136,6 +138,14 @@ const Start = () => {
           </select>
         </div>
       )}
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={openToStrangers}
+          onChange={(event) => setOpenToStrangers(event.target.checked)}
+        />
+        let strangers join
+      </label>
       <label className="check">
         <input
           type="checkbox"

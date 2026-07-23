@@ -33,7 +33,8 @@ export const startGame = (
   timePerPlayer?: number,
   incrementPerPlayer?: number,
   winningSequenceCount?: number,
-  teamCount?: number
+  teamCount?: number,
+  openToStrangers?: boolean
 ) => {
   const startGameAction: StartGameMessage = {
     type: MessageTypes.START_GAME,
@@ -43,6 +44,7 @@ export const startGame = (
     winningSequenceLength,
     winningSequenceCount,
     teamCount,
+    openSeats: openToStrangers,
     timePerPlayer,
     incrementPerPlayer,
   };
@@ -73,12 +75,18 @@ export const requestRobot = (gameId: string, robotName?: string) => {
   dispatch(requestRobotAction);
 };
 
-export const joinGame = (gameId: string) => {
+export const joinGame = (gameId: string, fromLobby = false) => {
   const joinGameAction: JoinGameMessage = {
     type: MessageTypes.JOIN_GAME,
     gameId,
+    ...(fromLobby ? { fromLobby: true } : {}),
   };
   dispatch(joinGameAction);
+};
+
+// Let strangers take a free seat straight from the lobby.
+export const openSeats = (gameId: string, open = true) => {
+  dispatch({ type: MessageTypes.OPEN_SEATS, gameId, open });
 };
 
 export const spectateGame = (gameId: string) => {

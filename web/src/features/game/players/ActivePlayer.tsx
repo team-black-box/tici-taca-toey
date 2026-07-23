@@ -3,6 +3,7 @@ import { getSideSymbol } from "../../../common/symbol";
 import Avatar from "../../../common/avatar";
 import { useAppSelector } from "../../../state/store";
 import { getPlayer } from "../../../state/players";
+import { KindIcon, kindLabel } from "../../../common/kind";
 import { getActiveGame } from "../../../state/games";
 
 const LOW_TIME_MS = 10_000;
@@ -60,7 +61,8 @@ const ActivePlayer = ({
   teamCount = 0,
 }: ActivePlayerProps) => {
   const symbol = getSideSymbol(playerId, players, teamCount);
-  const playerName = useAppSelector(getPlayer(playerId))?.name;
+  const player = useAppSelector(getPlayer(playerId));
+  const playerName = player?.name;
   const timer = useAppSelector(
     (state) => getActiveGame(state)?.timers?.[playerId]
   );
@@ -73,7 +75,12 @@ const ActivePlayer = ({
     >
       <div className="sym">{symbol.symbol}</div>
       <Avatar name={playerName ?? ""} />
-      {playerName && <div className="name">{playerName}</div>}
+      {playerName && (
+        <div className="name" title={kindLabel(player?.kind)}>
+          {playerName}
+          <KindIcon kind={player?.kind} />
+        </div>
+      )}
       {timer && <Clock timeLeft={timer.timeLeft} isRunning={timer.isRunning} />}
       {activePlayerTurn && <div className="turn-tag">▮ turn</div>}
     </div>

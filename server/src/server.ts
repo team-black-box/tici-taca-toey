@@ -186,11 +186,13 @@ const server = Bun.serve<SocketData>({
         mcpSessions: mcpSessionCount(),
       });
     }
-    // Public read endpoints. Everything here is keyed by the **handle** -
-    // the identity a player chose to make public - never by the internal
-    // playerId, which stays off the wire entirely.
+    // Public read endpoints, namespaced under /api so they can never
+    // shadow a client route - `/leaderboard` is a page in the app, and an
+    // API path of the same name silently served JSON to the browser.
+    // Everything here is keyed by the **handle**, the identity a player
+    // chose to make public, never by the internal playerId.
     if (engine.db) {
-      if (url.pathname === "/leaderboard") {
+      if (url.pathname === "/api/leaderboard") {
         const pool = url.searchParams.get("pool") ?? GLOBAL_POOL;
         const limit = Number(url.searchParams.get("limit") ?? 25);
         return json({
@@ -202,7 +204,7 @@ const server = Bun.serve<SocketData>({
       // Anyone's finished games, for the browse-and-replay pages. TTN
       // lines are board sizes and move sequences - they identify nobody.
       const byHandle = url.pathname.match(
-        /^[/]handles[/]([a-zA-Z0-9_-]{2,20})[/]games$/
+        /^[/]api[/]handles[/]([a-zA-Z0-9_-]{2,20})[/]games$/
       );
       if (byHandle) {
         const limit = Number(url.searchParams.get("limit") ?? 25);

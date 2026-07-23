@@ -4,7 +4,7 @@ import { useAppSelector } from "../../../state/store";
 import { getLobbyRobots } from "../../../state/lobby";
 import { getActiveGame } from "../../../state/games";
 import { getCurrentPlayerId } from "../../../state/currentPlayer";
-import { requestRobot } from "../../../state/actions";
+import { requestRobot, openSeats } from "../../../state/actions";
 import Share from "../../share/Share";
 import { getStatusForViewer } from "../../../common/status";
 import { sequenceCounts } from "../../../common/rules";
@@ -110,6 +110,19 @@ const Status = () => {
       <GameStatusTag game={game} />
       <SequenceProgress game={game} />
       {canAddRobot && <RobotPicker game={game} />}
+      {canAddRobot && (
+        <button
+          className="btn btn--ghost"
+          onClick={() => openSeats(game.gameId, !game.openSeats)}
+          title={
+            game.openSeats
+              ? "stop strangers joining from the lobby"
+              : "let anyone take a free seat from the lobby"
+          }
+        >
+          {game.openSeats ? "✓ open to anyone" : "+ open to anyone"}
+        </button>
+      )}
       {[GameStatus.GAME_IN_PROGRESS, GameStatus.WAITING_FOR_PLAYERS].includes(
         game.status
       ) && <Share gameId={game.gameId} gameStatus={game.status} />}

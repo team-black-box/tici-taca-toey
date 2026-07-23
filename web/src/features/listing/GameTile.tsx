@@ -30,11 +30,24 @@ const GameTile = ({ gameId }: GameTileProps) => {
     game.turn === viewerId && activeGameId !== gameId && viewerId !== "";
   return (
     <div
-      className={`tile ${activeGameId === gameId ? "is-active" : ""}`}
+      className={`tile ${activeGameId === gameId ? "is-active" : ""} ${
+        game.status === GameStatus.GAME_IN_PROGRESS ? "tile--active" : ""
+      }`}
       onClick={() => setActiveGame(gameId)}
     >
       <div>
-        <div className="tile-name">{game.name}</div>
+        <div className="tile-name">
+          {game.name}
+          {/* A game in play shows a little life, so the rail reads as busy
+              at a glance without opening anything. */}
+          {game.status === GameStatus.GAME_IN_PROGRESS && (
+            <span className="activity" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </span>
+          )}
+        </div>
         <div className={gameStatus.className}>{gameStatus.text}</div>
         {yourMove && <div className="your-move">▮ your move</div>}
         {game.notation &&

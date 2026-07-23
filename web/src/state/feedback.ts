@@ -32,17 +32,22 @@ export const feedbackEvent = (
   text: string
 ): FeedbackAction => ({ type: "FEEDBACK", kind, text });
 
+// Takes any action in the store's stream and picks out its own. The
+// parameter is deliberately loose: `kind` also exists on the protocol's
+// player responses with a different meaning, so narrowing here would
+// couple this reducer to the wire format.
 const reducer = (
   state: FeedbackEvent[] = initialState,
-  action: { type: string; kind?: FeedbackKind; text?: string }
+  action: { type: string }
 ): FeedbackEvent[] => {
-  if (action.type === "FEEDBACK" && action.text) {
+  const event = action as Partial<FeedbackAction>;
+  if (action.type === "FEEDBACK" && event.text) {
     return [
       ...state.slice(-(MAX_EVENTS - 1)),
       {
         id: nextId++,
-        kind: action.kind ?? "info",
-        text: action.text,
+        kind: event.kind ?? "info",
+        text: event.text,
         at: Date.now(),
       },
     ];

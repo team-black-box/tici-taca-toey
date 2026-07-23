@@ -23,6 +23,8 @@ export interface StartGameMessage {
   winningSequenceCount?: number;
   // Variant: equal teams (default 0 = none); playerCount % teamCount == 0.
   teamCount?: number;
+  // Start already open to strangers from the lobby.
+  openSeats?: boolean;
   timePerPlayer?: number;
   incrementPerPlayer?: number;
 }
@@ -37,6 +39,16 @@ export interface RequestRobotMessage {
 export interface JoinGameMessage {
   type: MessageTypes.JOIN_GAME;
   gameId: string;
+  // Joining from the public lobby rather than an invite link; the server
+  // then requires the game to be open to strangers.
+  fromLobby?: boolean;
+}
+
+// Open (or close) a game you host to strangers browsing the lobby.
+export interface OpenSeatsMessage {
+  type: MessageTypes.OPEN_SEATS;
+  gameId: string;
+  open?: boolean;
 }
 
 export interface SpectateGameMessage {
@@ -72,6 +84,7 @@ export type Message =
   | RequestRobotMessage
   | JoinGameMessage
   | SpectateGameMessage
+  | OpenSeatsMessage
   | ListGamesMessage
   | ListMyGamesMessage
   | ClaimHandleMessage
