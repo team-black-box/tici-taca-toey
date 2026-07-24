@@ -47,13 +47,10 @@ export const receiveCursors = (gameId: string, cursors: CursorTuple[]) => {
   listeners.get(gameId)?.forEach((listener) => listener(cursors));
 };
 
-// Nothing to draw once a game is over or we left it.
-export const clearCursors = (gameId: string) => {
-  if (latest.has(gameId)) {
-    latest.set(gameId, []);
-    listeners.get(gameId)?.forEach((listener) => listener([]));
-  }
-};
+// There is no clear() here on purpose: a game that ends gets one final
+// flush from the server carrying an empty set, so the ghosts go away
+// through the same path as every other update rather than through a
+// second, client-only one that could disagree with it.
 
 // --- sending ---------------------------------------------------------------
 
