@@ -64,8 +64,14 @@ Run from inside `web/`:
   `getStatusForViewer` in `src/common/status.ts`: GAME WON for the winner,
   GAME LOST for beaten players, WON BY <name> for spectators. In a team
   game the whole winning team sees GAME WON.
+- The win condition is spelled out in plain words wherever it matters:
+  `describeGoal` in `shared/rules.ts` ("6x6 board · first to make 2 lines
+  of 3 in a row") backs the `.objective` line under the game header
+  (`Status.tsx`) and the live preview under the start form. The form labels
+  are "in a row" (line length) and "lines to win" (how many), not the old
+  "win sequence" / "# to win".
 - Game variants (see `server/claude.md` for the rules): the start form
-  offers `# to win` and a teams picker; `src/common/rules.ts` shims
+  offers a line length and lines-to-win picker plus teams; `src/common/rules.ts` shims
   `shared/rules.ts` so the sequence counters in `Status.tsx` are computed
   with the same code the server scores with. Team games color and mark by
   side via `getSideSymbol`, and `Players.tsx` groups the roster per team.
@@ -84,8 +90,9 @@ Run from inside `web/`:
 - Move impact (`src/common/particles.ts` + the canvas in `Board.tsx`): a
   hand-rolled canvas particle engine - sparks with motion trails, a quick
   shockwave ring, and glyph debris, drawn additively so overlaps bloom like
-  phosphor. The burst takes its colour from the rendered cell, so team
-  colours come along for free. Two things to preserve: velocities are
+  phosphor. Sparks are multicolour - mostly the mark's own neon (read off
+  the rendered cell, so team colours come free) with flecks of the other
+  `--sym` neons and white-hot highlights. Two things to preserve: velocities are
   **px per second** multiplied by the frame delta (the first cut moved by
   velocity per *frame*, so sparks left the canvas in one tick and nothing
   was ever visible), and the effect's layout hook depends on the board

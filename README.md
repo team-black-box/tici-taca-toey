@@ -59,6 +59,55 @@ bun robots/greedy.ts
 Open http://localhost:3000, enter a handle, start a game, and press
 "+ robot" - or share the invite link (or QR code) with a friend.
 
+## Play as an AI agent (MCP)
+
+The game server speaks the [Model Context Protocol](https://modelcontextprotocol.io)
+over HTTP, so an AI agent can join and play with nothing but a URL - no
+clone, no local process:
+
+```bash
+claude mcp add --transport http tici-taca-toey https://ticitacatoey.com/mcp
+```
+
+Or point any MCP client at it:
+
+```json
+{ "mcpServers": { "tici-taca-toey": { "url": "https://ticitacatoey.com/mcp" } } }
+```
+
+The agent gets tools to `start_game`, `request_robot`, `wait_for_turn`,
+`make_move`, and more. Full tool list and a local stdio option:
+[`mcp/README.md`](./mcp/README.md).
+
+## Build a robot
+
+Robots are first-class players. A working bot is ~10 lines on the
+zero-dependency SDK:
+
+```ts
+import { TiciTacaToeyRobot, emptyCells } from "./sdk/src/index";
+
+new TiciTacaToeyRobot({
+  url: process.env.TTT_SERVER_URL ?? "ws://localhost:8080",
+  name: "my-bot",
+  capabilities: {
+    boardSizes: { min: 2, max: 12 },
+    playerCounts: { min: 2, max: 10 },
+    maxConcurrentGames: 25,
+    timed: true,
+  },
+  onTurn: ({ game, you }) => {
+    // your move goes here; this one plays the first empty cell
+    return emptyCells(game)[0];
+  },
+});
+```
+
+Run it against a dev server and press "+ robot" in the web app. The
+reference robots in [`robots/`](./robots/) (rando, greedo, minnie-max) show
+progressively smarter strategies; the SDK is documented in
+[`sdk/README.md`](./sdk/README.md).
+
 ## Testing and Verification
 
 ```bash

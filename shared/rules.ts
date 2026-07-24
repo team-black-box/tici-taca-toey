@@ -29,6 +29,28 @@ const DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
 export const teamOfSeat = (seat: number, teamCount: number): number =>
   teamCount > 0 ? seat % teamCount : seat;
 
+// The win condition in plain words, so a player who just joined can tell
+// what they are trying to do. Shared so the game header and the start
+// form's live preview read identically on web and mobile.
+export const describeGoal = (config: {
+  boardSize: number;
+  winningSequenceLength: number;
+  winningSequenceCount: number;
+  teamCount: number;
+}): string => {
+  const { boardSize, winningSequenceLength, winningSequenceCount, teamCount } =
+    config;
+  const goal =
+    winningSequenceCount > 1
+      ? `first to make ${winningSequenceCount} lines of ${winningSequenceLength} in a row`
+      : `first to get ${winningSequenceLength} in a row`;
+  const parts = [`${boardSize}x${boardSize} board`, goal];
+  if (teamCount > 0) {
+    parts.push(`${teamCount} teams`);
+  }
+  return parts.join(" · ");
+};
+
 export interface SequenceScan {
   // Completed sequences: sum over directions of floor(run / winLen).
   count: number;

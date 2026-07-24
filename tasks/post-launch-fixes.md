@@ -45,6 +45,18 @@ web/src/features/game/status/Status.tsx, mobile/src/*.
 
 ## Checkpoints
 
+- 2026-07-24 07:01 IST - Second batch (clarity + polish) done and browser-verified:
+  game header now shows "> goal: 6x6 board · first to make 2 lines of 3 in
+  a row"; the start form labels are "in a row"/"lines to win" with a live
+  goal preview; help rewritten to explain lines. Move particles are
+  multicolour (verified visually - pink/cyan/yellow/white flecks). Handle
+  input got id/name/autocomplete (Chrome console warning gone). Finished
+  games capped at 10 in the rail with a "see all / your profile" button.
+  Added CONTRIBUTING.md, SECURITY.md, issue + PR templates, and README
+  MCP-connect + robot quick-start sections. Latency: the perceived delay
+  is the resident robots' deliberate 400-700ms think time plus normal
+  India->Nuremberg RTT, not server load. Full matrix green.
+
 - 2026-07-23 23:15 IST - All five done and browser-verified: leaderboard sidebar+page
   populate (origin fix, confirmed the /ws path was the cause); player-page
   and history cards no longer overflow at 1280 or 560; starting a game

@@ -9,7 +9,10 @@ const Player = () => {
   return (
     <div className="persona">
       <input
+        id="handle"
+        name="handle"
         type="text"
+        autoComplete="off"
         value={name}
         onChange={(event) => updateCurrentPlayerName(event.target.value)}
         onKeyDown={(event) => {

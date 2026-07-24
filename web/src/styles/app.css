@@ -385,6 +385,28 @@ input::placeholder {
   color: var(--danger);
 }
 
+/* The win condition, spelled out under the game header and previewed live
+   under the start form, so nobody has to guess what they are playing for. */
+.objective {
+  margin: -6px 0 14px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.objective::before {
+  content: "> ";
+  color: var(--accent);
+}
+
+.goal-preview {
+  margin: 4px 0 12px;
+  font-size: 12px;
+  color: var(--accent);
+  opacity: 0.9;
+}
+.goal-preview::before {
+  content: "> ";
+}
+
 /* --- board --------------------------------------------------------------- */
 
 /* The board must size itself from its own column, never from the viewport.
@@ -763,6 +785,8 @@ input::placeholder {
 .overlay-panel p { margin: 0 0 10px; }
 .overlay-panel b { color: var(--accent); font-weight: 700; }
 .overlay-panel code { color: var(--info); }
+.overlay-panel ul { margin: 0 0 10px; padding-left: 18px; }
+.overlay-panel li { margin-bottom: 5px; }
 .overlay-close { margin-top: 10px; }
 
 .sync-block { display: flex; flex-direction: column; align-items: center; }

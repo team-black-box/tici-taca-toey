@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, MONO, getStatusForViewer } from "../theme";
 import { Avatar, Badge, Btn, Field, styles as ui } from "../ui";
 import { decodeTtn } from "../ttn";
+import { describeGoal } from "../rules";
 import { GameStatus } from "../model";
 import {
   useAppSelector,
@@ -123,7 +124,7 @@ const LobbyScreen = () => {
           <Text style={ui.panelTitle}>{"> welcome"}</Text>
           <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
             tic-tac-toe, the way it should have shipped: boards 2-12, up to
-            10 players, win sequences you choose, chess clocks optional.
+            10 players, line length you choose, chess clocks optional.
             robots are standing by.
           </Text>
           <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
@@ -140,10 +141,13 @@ const LobbyScreen = () => {
           <View style={[ui.panel, { borderColor: C.accent }]}>
             <Text style={ui.panelTitle}>{"> how to play"}</Text>
             <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
-              line up your win sequence before anyone else. press + robot to
-              summon rando, greedo, or minnie-max. share invites to summon
-              humans. claim your handle (type it and hit return) to join the
-              leaderboard. finished games replay from their notation line.
+              win by making a line - marks in a row across, down, or
+              diagonally. "in a row" sets how long a line must be (3 is
+              classic); "lines" sets how many you need (usually 1). the game
+              spells the goal out under its name. + robot summons an
+              opponent; claim a handle (type it, hit return) for the
+              leaderboard; finished games replay from their notation. gg
+              forfeits.
             </Text>
             <Text style={ui.panelTitle}>{"> sync devices"}</Text>
             <Btn
@@ -262,9 +266,19 @@ const LobbyScreen = () => {
         <View style={ui.row}>
           <Field label="BOARD" value={boardSize} onChange={setBoardSize} numeric />
           <Field label="PLAYERS" value={playerCount} onChange={setPlayerCount} numeric />
-          <Field label="WIN SEQ" value={winSeq} onChange={setWinSeq} numeric />
-          <Field label="# TO WIN" value={winCount} onChange={setWinCount} numeric />
+          <Field label="IN A ROW" value={winSeq} onChange={setWinSeq} numeric />
+          <Field label="LINES" value={winCount} onChange={setWinCount} numeric />
         </View>
+        {/* Live plain-language preview of the win condition. */}
+        <Text style={[MONO, { color: C.accent, fontSize: 11, marginBottom: 8 }]}>
+          {"> goal: "}
+          {describeGoal({
+            boardSize: Number(boardSize) || 0,
+            winningSequenceLength: Number(winSeq) || 0,
+            winningSequenceCount: Number(winCount) || 1,
+            teamCount: chosenTeams,
+          })}
+        </Text>
         {teamChoices.length > 0 && (
           <View style={{ marginBottom: 8 }}>
             <Text style={ui.label}>TEAMS</Text>
@@ -376,6 +390,19 @@ const LobbyScreen = () => {
               </Pressable>
             );
           })}
+          {name.trim().length > 0 && (
+            <Btn
+              title={
+                history.length > 10
+                  ? `SEE ALL ${history.length} GAMES`
+                  : "YOUR PROFILE"
+              }
+              ghost
+              onPress={() =>
+                navigation.navigate("Player", { handle: name.trim() })
+              }
+            />
+          )}
         </View>
       )}
 

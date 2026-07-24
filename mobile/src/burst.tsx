@@ -13,17 +13,47 @@ import { MONO } from "./theme";
 const SPARK_COUNT = 16;
 const GLYPHS = ["0", "1", "<", ">", "/", "*", "#", "+"];
 
+// The board's neon palette plus a white-hot highlight. A burst keeps mostly
+// the mark's own colour but flecks in other neons so it shimmers rather
+// than reading as one flat hue - mirrors web/src/common/particles.ts.
+const NEON = [
+  "#00ff66",
+  "#00d2ff",
+  "#ff9d00",
+  "#ffe600",
+  "#b3ff00",
+  "#8a8aff",
+  "#4da6ff",
+  "#ff4d6a",
+  "#c45dff",
+  "#ff6bd6",
+];
+const WHITE_HOT = "#eafff2";
+
+const sparkColor = (base: string): string => {
+  const roll = Math.random();
+  if (roll < 0.5) {
+    return base;
+  }
+  if (roll < 0.85) {
+    return NEON[Math.floor(Math.random() * NEON.length)];
+  }
+  return WHITE_HOT;
+};
+
 interface SparkSpec {
   angle: number;
   distance: number;
   size: number;
   duration: number;
+  color: string;
   glyph?: string;
 }
 
 // A fixed shape per mount, so the burst does not re-randomise on every
-// render - only its progress animates.
-const makeSparks = (scale: number): SparkSpec[] =>
+// render - only its progress animates. Each spark's colour is drawn from
+// the palette here so the burst is multicolour.
+const makeSparks = (scale: number, base: string): SparkSpec[] =>
   Array.from({ length: SPARK_COUNT }, (_, index) => {
     const fast = index % 5 === 0;
     return {
@@ -31,6 +61,7 @@ const makeSparks = (scale: number): SparkSpec[] =>
       distance: scale * (fast ? 0.75 + Math.random() * 0.5 : 0.3 + Math.random() * 0.35),
       size: index % 7 === 0 ? scale * 0.1 : Math.max(2, scale * 0.035),
       duration: fast ? 420 : 320 + Math.random() * 220,
+      color: sparkColor(base),
       glyph: index % 7 === 0 ? GLYPHS[index % GLYPHS.length] : undefined,
     };
   });
@@ -38,13 +69,12 @@ const makeSparks = (scale: number): SparkSpec[] =>
 // One spark: flies outward, falls a little, fades out.
 const Spark = ({
   spec,
-  color,
   progress,
 }: {
   spec: SparkSpec;
-  color: string;
   progress: Animated.Value;
 }) => {
+  const color = spec.color;
   const dx = Math.cos(spec.angle) * spec.distance;
   const dy = Math.sin(spec.angle) * spec.distance;
   const translateX = progress.interpolate({
@@ -146,7 +176,7 @@ export const Burst = ({
   scale: number;
 }) => {
   const progress = useRef(new Animated.Value(0)).current;
-  const sparks = useMemo(() => makeSparks(scale), [scale]);
+  const sparks = useMemo(() => makeSparks(scale, color), [scale, color]);
 
   useEffect(() => {
     if (!active) {
@@ -175,7 +205,7 @@ export const Burst = ({
     >
       <Ring scale={scale} color={color} progress={progress} />
       {sparks.map((spec, index) => (
-        <Spark key={index} spec={spec} color={color} progress={progress} />
+        <Spark key={index} spec={spec} progress={progress} />
       ))}
     </View>
   );

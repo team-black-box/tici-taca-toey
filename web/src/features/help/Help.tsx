@@ -47,10 +47,30 @@ const Help = () => {
           >
             <div className="panel-title">how to play</div>
             <p>
-              line up <b>win sequence</b> marks in a row - across, down, or
-              diagonal - before anyone else. boards go 2-12, players 2-10,
-              and the win length is yours to pick. timed games run chess
-              clocks: run out and you lose.
+              tic-tac-toe with the dials exposed. take turns placing your
+              mark; win by making a <b>line</b> - marks in a row across,
+              down, or diagonally - before anyone else.
+            </p>
+            <p>
+              two settings decide what winning means, and the game always
+              spells the goal out under its name:
+            </p>
+            <ul>
+              <li>
+                <b>in a row</b> - how long a line has to be. 3 is classic
+                tic-tac-toe; on a big board try 4 or 5.
+              </li>
+              <li>
+                <b>lines to win</b> - how many separate lines you need.
+                usually 1. set it to 2+ and the game keeps going until
+                someone completes that many (lines may cross, like a
+                crossword).
+              </li>
+            </ul>
+            <p>
+              boards go 2-12, players 2-10. in a <b>team</b> game your
+              teammates' marks count toward the same lines. timed games run
+              chess clocks: run out and you lose. <b>gg</b> forfeits.
             </p>
             <p>
               press <b>+ robot</b> to summon an opponent: rando plays chaos,

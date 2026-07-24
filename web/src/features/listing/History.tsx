@@ -1,9 +1,14 @@
 import { useMemo } from "react";
 import { useAppSelector } from "../../state/store";
 import { getMyGames } from "../../state/history";
+import { getCurrentPlayerName } from "../../state/currentPlayer";
 import { navigate } from "../../common/router";
 import { decodeTtn } from "../../common/ttn";
 import { ArchivedGameSummary, GameStatus } from "../../common/model";
+
+// The rail shows only the most recent handful; the rest live on the
+// player's own profile page.
+const RAIL_LIMIT = 10;
 
 // The result of an archived game from its owner's seat. Team games win or
 // lose as a side: my team = mySeat % teamCount.
@@ -68,9 +73,10 @@ const when = (timestamp: number): string => {
 // from the MY_GAMES websocket response (see state/history.ts).
 const History = () => {
   const games = useAppSelector(getMyGames);
+  const handle = useAppSelector(getCurrentPlayerName);
   const rows = useMemo(
     () =>
-      games.map((game) => ({
+      games.slice(0, RAIL_LIMIT).map((game) => ({
         game,
         result: resultFor(game),
         config: configOf(game),
@@ -104,6 +110,16 @@ const History = () => {
           </div>
         </div>
       ))}
+      {handle && (
+        <button
+          className="btn btn--ghost"
+          onClick={() => navigate(`/player/${handle}`)}
+        >
+          {games.length > RAIL_LIMIT
+            ? `see all ${games.length} games >`
+            : "your profile >"}
+        </button>
+      )}
     </div>
   );
 };

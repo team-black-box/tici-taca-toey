@@ -21,7 +21,7 @@ import {
   kindLabel,
   kindMark,
 } from "../theme";
-import { sequenceCounts } from "../rules";
+import { sequenceCounts, describeGoal } from "../rules";
 import { Avatar, Badge, Btn, Clock, KindMark, styles as ui } from "../ui";
 import { GlassPill } from "../glass";
 import { Burst } from "../burst";
@@ -320,6 +320,16 @@ const GameScreen = () => {
           </Text>
           <Badge text={status.text} color={status.color} />
         </View>
+        {/* Always say what winning looks like, so nobody has to guess. */}
+        <Text style={[MONO, { color: C.dim, fontSize: 11, marginBottom: 8 }]}>
+          {"> goal: "}
+          {describeGoal({
+            boardSize: game.boardSize,
+            winningSequenceLength: game.winningSequenceLength,
+            winningSequenceCount: game.winningSequenceCount,
+            teamCount: game.teamCount,
+          })}
+        </Text>
         {game.winningSequenceCount > 1 &&
           game.status === GameStatus.GAME_IN_PROGRESS && (
             <View style={{ flexDirection: "row", gap: 14, marginBottom: 4 }}>

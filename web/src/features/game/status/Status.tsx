@@ -7,7 +7,7 @@ import { getCurrentPlayerId } from "../../../state/currentPlayer";
 import { requestRobot, openSeats, joinGame, forfeit } from "../../../state/actions";
 import Share from "../../share/Share";
 import { getStatusForViewer } from "../../../common/status";
-import { sequenceCounts } from "../../../common/rules";
+import { sequenceCounts, describeGoal } from "../../../common/rules";
 import { GAME_SYMBOL } from "../../../common/symbol";
 
 interface GameStatusTagProps {
@@ -112,6 +112,7 @@ const Status = () => {
   const canForfeit =
     game.status === GameStatus.GAME_IN_PROGRESS && isPlayer;
   return (
+    <>
     <div className="status-row">
       <div className="game-name">{game.name}</div>
       <GameStatusTag game={game} />
@@ -156,6 +157,17 @@ const Status = () => {
         game.status
       ) && <Share gameId={game.gameId} gameStatus={game.status} />}
     </div>
+    {/* Always say what winning looks like, so nobody has to guess. */}
+    <div className="objective">
+      goal:{" "}
+      {describeGoal({
+        boardSize: game.boardSize,
+        winningSequenceLength: game.winningSequenceLength,
+        winningSequenceCount: game.winningSequenceCount,
+        teamCount: game.teamCount,
+      })}
+    </div>
+    </>
   );
 };
 

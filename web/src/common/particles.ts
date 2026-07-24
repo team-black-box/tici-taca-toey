@@ -47,6 +47,37 @@ interface Ring {
 
 const GLYPHS = "01<>/\\|=+*#".split("");
 
+// The neon palette the board itself uses (--sym-0..9), plus white-hot for
+// spark highlights. A burst pulls mostly from the mark's own colour but
+// throws in flecks of other neons and a few white sparks, so the explosion
+// shimmers instead of being one flat hue.
+const NEON = [
+  "#00ff66",
+  "#00d2ff",
+  "#ff9d00",
+  "#ffe600",
+  "#b3ff00",
+  "#8a8aff",
+  "#4da6ff",
+  "#ff4d6a",
+  "#c45dff",
+  "#ff6bd6",
+];
+const WHITE_HOT = "#eafff2";
+
+// Most sparks keep the mark's colour (identity), some pick another neon,
+// a few are white-hot highlights.
+const sparkColor = (base: string): string => {
+  const roll = Math.random();
+  if (roll < 0.5) {
+    return base;
+  }
+  if (roll < 0.85) {
+    return NEON[Math.floor(Math.random() * NEON.length)];
+  }
+  return WHITE_HOT;
+};
+
 // Both are expressed relative to the cell size, so a 3x3 board and a 12x12
 // board throw sparks that look the same rather than the big board looking
 // limp. Gravity is px/s^2, drag is the fraction of speed kept per second.
@@ -131,7 +162,8 @@ export class ParticleField {
         life: maxLife,
         maxLife,
         size: isGlyph ? scale * 0.1 : random(0.006, 0.018) * scale,
-        color,
+        // Varied neon so the burst shimmers rather than reading as one hue.
+        color: sparkColor(color),
         glyph: isGlyph
           ? GLYPHS[Math.floor(Math.random() * GLYPHS.length)]
           : undefined,

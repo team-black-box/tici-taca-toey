@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { startGame } from "../../state/actions";
 import { extractValueAndSet } from "../../common/extractValueAndSet";
+import { describeGoal } from "../../common/rules";
 import { PaperPlaneIcon } from "../../common/icons";
 
 const DEFAULT_GAME_NAME = "My Amazing Game";
@@ -98,7 +99,7 @@ const Start = () => {
       </div>
       <div className="field-row">
         <div className="field">
-          <label htmlFor="start-winlen">win sequence</label>
+          <label htmlFor="start-winlen">in a row</label>
           <input
             id="start-winlen"
             type="number"
@@ -106,10 +107,11 @@ const Start = () => {
             min={2}
             value={winningSequenceLength}
             onChange={extractValueAndSet(setWinningSequenceLength)}
+            title="how many of your marks in a line - across, down, or diagonal - make one sequence"
           />
         </div>
         <div className="field">
-          <label htmlFor="start-wincount"># to win</label>
+          <label htmlFor="start-wincount">lines to win</label>
           <input
             id="start-wincount"
             type="number"
@@ -117,10 +119,20 @@ const Start = () => {
             max={10}
             value={winningSequenceCount}
             onChange={extractValueAndSet(setWinningSequenceCount)}
-            title="sequences required to win - e.g. 4 sequences of length 2 on a big board"
+            title="how many separate lines you need to win - usually 1"
           />
         </div>
       </div>
+      {/* Live plain-language preview of the win condition. */}
+      <p className="goal-preview">
+        goal:{" "}
+        {describeGoal({
+          boardSize: Number(boardSize) || 0,
+          winningSequenceLength: Number(winningSequenceLength) || 0,
+          winningSequenceCount: Number(winningSequenceCount) || 1,
+          teamCount: chosenTeams,
+        })}
+      </p>
       {teamChoices.length > 0 && (
         <div className="field">
           <label htmlFor="start-teams">teams</label>
