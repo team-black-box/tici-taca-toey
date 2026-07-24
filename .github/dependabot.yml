@@ -1,22 +1,71 @@
+# Dependabot keeps an eye on dependencies. Two deliberate choices keep the
+# noise down: every ecosystem's routine updates are grouped into a single
+# monthly pull request, and major-version bumps are left alone (they tend
+# to be breaking - TypeScript 7, Babel 8 - and are reviewed by hand).
+# Security updates still come through regardless of these rules.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/web"
     schedule:
       interval: "monthly"
+    groups:
+      web:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "npm"
     directory: "/server"
     schedule:
       interval: "monthly"
+    groups:
+      server:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "npm"
     directory: "/sdk"
     schedule:
       interval: "monthly"
+    groups:
+      sdk:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "npm"
     directory: "/mobile"
     schedule:
       interval: "monthly"
+    groups:
+      mobile:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # iOS build tooling (CocoaPods / Fastlane). Not shipped in the app, but
+  # security advisories here should still get a PR.
+  - package-ecosystem: "bundler"
+    directory: "/mobile"
+    schedule:
+      interval: "monthly"
+    groups:
+      mobile-ruby:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      actions:
+        patterns: ["*"]

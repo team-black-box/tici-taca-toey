@@ -45,6 +45,21 @@ web/src/features/game/status/Status.tsx, mobile/src/*.
 
 ## Checkpoints
 
+- 2026-07-24 07:19 IST - Link previews + Dependabot. Per-route OG meta is now rewritten
+  server-side in static.ts (crawlers do not run JS): /play, /spectate,
+  /leaderboard, /player/<handle>, /replay each unfurl with their own
+  title/description, plus injected twitter:* tags; privacy.html and
+  terms.html got their own OG meta directly. Verified over HTTP on the real
+  bundle for every route, with attribute escaping on handles. Found and
+  fixed that the bundler wraps og:description across lines - regexes now
+  tolerate whitespace. 8 static tests (5 new). Dependabot: the 6 alerts
+  were all Ruby gems in mobile/Gemfile; relaxed the concurrent-ruby pin and
+  generated a Gemfile.lock resolving to concurrent-ruby 1.3.8 +
+  activesupport 7.2.3.1 (both patched). Closed all 9 open Dependabot PRs
+  (breaking majors like TypeScript 7 / Babel 8) and reworked dependabot.yml
+  to group updates, ignore majors, and add the bundler ecosystem so this
+  noise does not return.
+
 - 2026-07-24 07:01 IST - Second batch (clarity + polish) done and browser-verified:
   game header now shows "> goal: 6x6 board · first to make 2 lines of 3 in
   a row"; the start form labels are "in a row"/"lines to win" with a live

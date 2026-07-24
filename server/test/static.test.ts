@@ -13,7 +13,10 @@ const bodyOf = async (response: Response | undefined): Promise<string> => {
 describe("same-origin static serving", () => {
   test("serves index.html at / with revalidation caching", async () => {
     const response = serve("GET", "/");
-    expect(await bodyOf(response)).toContain("<title>tici</title>");
+    const html = await bodyOf(response);
+    // The SPA shell, with the default link-preview title applied.
+    expect(html).toContain('<div id="root"></div>');
+    expect(html).toContain("<title>tici-taca-toey</title>");
     expect(response!.headers.get("Cache-Control")).toBe("no-cache");
   });
 
@@ -32,7 +35,7 @@ describe("same-origin static serving", () => {
     );
   });
 
-  test("client-side routes fall back to index.html", async () => {
+  test("client-side routes fall back to the index shell", async () => {
     for (const route of [
       "/play/some-game-id",
       "/spectate/abc",
@@ -40,9 +43,40 @@ describe("same-origin static serving", () => {
       "/missing.png",
     ]) {
       expect(await bodyOf(serve("GET", route))).toContain(
-        "<title>tici</title>"
+        '<div id="root"></div>'
       );
     }
+  });
+
+  test("each route gets its own link-preview meta", async () => {
+    const preview = async (route: string) => bodyOf(serve("GET", route));
+
+    const play = await preview("/play/abc");
+    expect(play).toContain("<title>Join a game · tici-taca-toey</title>");
+    expect(play).toContain('property="og:title" content="Join a game');
+    // Twitter tags are injected so every scraper reads the same thing.
+    expect(play).toContain('name="twitter:title" content="Join a game');
+
+    const spectate = await preview("/spectate/abc");
+    expect(spectate).toContain("Watch a game");
+
+    const leaderboard = await preview("/leaderboard");
+    expect(leaderboard).toContain(
+      "<title>Leaderboard · tici-taca-toey</title>"
+    );
+    expect(leaderboard).toContain("difficulty-weighted Elo");
+
+    // A player page names the handle.
+    const player = await preview("/player/neo");
+    expect(player).toContain("<title>neo · tici-taca-toey</title>");
+    expect(player).toContain("neo's games");
+
+    // Nothing exotic in a handle can break out of an attribute.
+    const nasty = await preview(
+      "/player/" + encodeURIComponent('a"><script>')
+    );
+    expect(nasty).not.toContain("<script>");
+    expect(nasty).toContain("&lt;script&gt;");
   });
 
   test("path traversal never escapes the web root", async () => {
@@ -53,8 +87,9 @@ describe("same-origin static serving", () => {
       "/..%2foutside.txt",
     ]) {
       const response = serve("GET", attempt);
-      // Traversal collapses to a client-side route: index, never the file.
-      expect(await bodyOf(response)).toContain("<title>tici</title>");
+      // Traversal collapses to a client-side route: the index shell, never
+      // the file outside the web root.
+      expect(await bodyOf(response)).toContain('<div id="root"></div>');
     }
   });
 

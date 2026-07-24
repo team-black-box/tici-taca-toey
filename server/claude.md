@@ -22,7 +22,11 @@ platform primitives.
 - `src/timer.ts` - opt-in chess-clock timers (see Timed games).
 - `src/notation.ts` - TTN encode/decode (see Notation).
 - `src/static.ts` - same-origin serving of the built web app
-  (`TTT_WEB_DIR`, production only; see Deployment).
+  (`TTT_WEB_DIR`, production only; see Deployment). It also rewrites the
+  index.html title/description/OG tags per route so a shared link unfurls
+  with content about that page - crawlers never run the SPA's JavaScript,
+  so this has to happen server-side. The meta-tag regexes tolerate the
+  bundler's multi-line wrapping (`\s+` between attributes).
 - `src/mcp.ts` - MCP over streamable HTTP at `/mcp`, so AI agents connect
   with a URL and no local install. A session is an in-process player (the
   residents.ts trick), keyed by the `Mcp-Session-Id` header; an
