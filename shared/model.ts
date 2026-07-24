@@ -61,6 +61,13 @@ export interface Game {
   // Variant: number of equal teams (0 = no teams). Team of a seat is
   // seat % teamCount - the rotation interleaves teams automatically.
   teamCount: number;
+  // Presence: show every player's cursor to every *opponent*, not just to
+  // teammates and spectators (who always see them). Off by default,
+  // chosen at game start and never changed after - a game whose rules
+  // shifted underneath the players is not a game. When it is on, a hover
+  // is public, which makes hovering a cell you have no intention of
+  // taking a legitimate bluff.
+  showCursors: boolean;
   // Winning team index when a team game ends in a win, else -1.
   winningTeam: number;
   status: GameStatus;
@@ -171,6 +178,25 @@ export interface HandleClaimedResponse {
   handle: string;
 }
 
+// Where everyone else's pointer is, coalesced by the server and pushed a
+// few times a second. Seat-keyed, not playerId-keyed: a seat is all a
+// client needs to pick the symbol and its neon, and it keeps playerIds
+// out of a message that goes to every spectator.
+//
+// A cursor never includes the recipient's own seat - a client already
+// knows where its own pointer is and draws that ghost locally, with no
+// round trip. `OFF_BOARD` means the pointer left the board; the seat is
+// sent once with that value and then dropped from the map.
+export type CursorTuple = [seat: number, x: number, y: number];
+
+export const CURSOR_OFF_BOARD = -1;
+
+export interface CursorsResponse {
+  type: MessageTypes.CURSORS;
+  gameId: string;
+  cursors: CursorTuple[];
+}
+
 export interface ListGamesResponse {
   type: MessageTypes.LIST_GAMES;
   games: GameSummary[];
@@ -223,6 +249,7 @@ export type Response =
   | ListGamesResponse
   | MyGamesResponse
   | HandleClaimedResponse
+  | CursorsResponse
   | UpdateNameAction
   | ConnectedToServerAction
   | DisconnectedFromServerAction
@@ -244,6 +271,11 @@ export enum MessageTypes {
   START_GAME = "START_GAME",
   JOIN_GAME = "JOIN_GAME",
   MAKE_MOVE = "MAKE_MOVE",
+  // Presence, not game state: where a player's pointer is hovering, in
+  // cell coordinates. Never recorded, never archived, never in the TTN.
+  CURSOR = "CURSOR",
+  CURSORS = "CURSORS", // response only
+
   // Concede an in-progress game ("gg"). Two sides: the other wins. More:
   // the game ends, attributed to the forfeiter.
   FORFEIT = "FORFEIT",

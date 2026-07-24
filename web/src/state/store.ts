@@ -11,8 +11,10 @@ import {
   GameStore,
   StaticPlayerStore,
   GameStatus,
+  CursorTuple,
 } from "../common/model";
 import { initSocket, sendToServer } from "./socket";
+import { receiveCursors } from "./cursors";
 import { getPlayerKey } from "./identity";
 import currentPlayerReducer, { CurrentPlayerState } from "./currentPlayer";
 import gamesReducer from "./games";
@@ -135,6 +137,16 @@ initSocket({
       const copy =
         ERROR_COPY[response.error] ?? `server said: ${response.error}`;
       say(response.error === ErrorCodes.HANDLE_TAKEN ? "warn" : "err", copy);
+      return;
+    }
+    // Presence never enters the store: reducing it would re-render the
+    // whole app several times a second for a decoration. See cursors.ts.
+    if (response.type === MessageTypes.CURSORS) {
+      const message = response as unknown as {
+        gameId: string;
+        cursors: CursorTuple[];
+      };
+      receiveCursors(message.gameId, message.cursors ?? []);
       return;
     }
     if (response.type === MessageTypes.HANDLE_CLAIMED) {

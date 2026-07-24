@@ -34,7 +34,8 @@ export const startGame = (
   incrementPerPlayer?: number,
   winningSequenceCount?: number,
   teamCount?: number,
-  openToStrangers?: boolean
+  openToStrangers?: boolean,
+  showCursors?: boolean
 ) => {
   const startGameAction: StartGameMessage = {
     type: MessageTypes.START_GAME,
@@ -45,6 +46,7 @@ export const startGame = (
     winningSequenceCount,
     teamCount,
     openSeats: openToStrangers,
+    showCursors,
     timePerPlayer,
     incrementPerPlayer,
   };

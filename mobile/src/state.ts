@@ -5,6 +5,7 @@
 import { useSyncExternalStore } from "react";
 import {
   ArchivedGameSummary,
+  CursorTuple,
   Game,
   GameStore,
   GameSummary,
@@ -265,6 +266,14 @@ const connect = () => {
         say(response.error === "HANDLE_TAKEN" ? "warn" : "err", copy);
         return;
       }
+      // Presence stays out of the store for the same reason it does on
+      // the web: reducing it would re-render every subscribed screen
+      // several times a second. Only the board listens. This app is
+      // receive-only - a finger has no hover, so nothing is ever sent.
+      if (response.type === MessageTypes.CURSORS) {
+        receiveCursors(response.gameId, response.cursors ?? []);
+        return;
+      }
       if (response.type === MessageTypes.HANDLE_CLAIMED) {
         storage.setString(HANDLE_KEY, response.handle);
         reduce({ type: MessageTypes.UPDATE_NAME, name: response.handle });
@@ -417,6 +426,38 @@ const subscribe = (listener: () => void) => {
   };
 };
 
+// --- presence (mirrors web/src/state/cursors.ts, receive half only) -------
+
+type CursorListener = (cursors: CursorTuple[]) => void;
+
+const cursorListeners = new Map<string, Set<CursorListener>>();
+const latestCursors = new Map<string, CursorTuple[]>();
+
+const receiveCursors = (gameId: string, cursors: CursorTuple[]) => {
+  latestCursors.set(gameId, cursors);
+  cursorListeners.get(gameId)?.forEach((listener) => listener(cursors));
+};
+
+export const subscribeToCursors = (
+  gameId: string,
+  listener: CursorListener
+): (() => void) => {
+  const forGame = cursorListeners.get(gameId) ?? new Set<CursorListener>();
+  forGame.add(listener);
+  cursorListeners.set(gameId, forGame);
+  const known = latestCursors.get(gameId);
+  if (known) {
+    listener(known);
+  }
+  return () => {
+    forGame.delete(listener);
+    if (forGame.size === 0) {
+      cursorListeners.delete(gameId);
+      latestCursors.delete(gameId);
+    }
+  };
+};
+
 export function useAppSelector<T>(selector: (appState: AppState) => T): T {
   return useSyncExternalStore(subscribe, () => selector(state));
 }
@@ -442,7 +483,8 @@ export const startGame = (
   incrementPerPlayer?: number,
   winningSequenceCount?: number,
   teamCount?: number,
-  openToStrangers?: boolean
+  openToStrangers?: boolean,
+  showCursors?: boolean
 ) => {
   dispatch({
     type: MessageTypes.START_GAME,
@@ -453,6 +495,7 @@ export const startGame = (
     winningSequenceCount,
     teamCount,
     openSeats: openToStrangers,
+    showCursors,
     timePerPlayer,
     incrementPerPlayer,
   });

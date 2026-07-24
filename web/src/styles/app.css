@@ -282,6 +282,15 @@ input::placeholder {
   accent-color: var(--accent);
 }
 
+/* The consequence of a checkbox, in plain words, right under it. */
+.check-note {
+  margin: -2px 0 8px 24px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--fg-dim);
+  opacity: 0.85;
+}
+
 .btn {
   font: inherit;
   display: inline-block;
@@ -1100,6 +1109,35 @@ select:focus-visible {
   inset: 0;
   pointer-events: none;
   z-index: 2;
+}
+
+/* Other people's pointers: a dim ghost of their own mark, hovering over
+   the cell they are thinking about. Below the sparks, above the board,
+   and never in the way of a click. */
+.cursor-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.cursor-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-weight: 700;
+  opacity: 0.45;
+  filter: drop-shadow(0 0 6px currentColor);
+  /* The glide between cells is what makes it read as a person moving
+     rather than a mark appearing. Transform only - no layout per frame. */
+  transition: transform 90ms linear;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor-ghost {
+    transition: none;
+  }
 }
 
 /* A mark being slammed down should move the whole board a little. The

@@ -21,6 +21,8 @@ import {
   WinningSequence,
   PlayerConnection,
   PlayerKind,
+  CursorTuple,
+  CURSOR_OFF_BOARD,
 } from "./model";
 import { Timer } from "./timer";
 import { countSequences, ownerOfSeat, teamOfSeat } from "./rules";
@@ -201,6 +203,13 @@ class TiciTacaToeyGameEngine implements GameEngine {
   #disconnectGraceMs: number;
   #db?: GameDb;
   #handleOutcomes: Map<string, { ok: boolean; handle: string; reason?: string }>;
+  // Presence, deliberately *not* on Game: a cursor is not game state, must
+  // never reach the TTN line or the archive, and must vanish with the game
+  // it belongs to. gameId -> seat -> cell.
+  #cursors: Map<string, Map<number, { x: number; y: number }>>;
+  // Games whose cursors changed since the last flush, so the flush costs
+  // O(games people are actually hovering in) rather than O(all games).
+  #cursorsDirty: Set<string>;
 
   constructor(options: EngineOptions = {}) {
     this.games = {};
@@ -214,6 +223,8 @@ class TiciTacaToeyGameEngine implements GameEngine {
       options.disconnectGraceMs ?? DEFAULT_DISCONNECT_GRACE_MS;
     this.#db = options.db;
     this.#handleOutcomes = new Map();
+    this.#cursors = new Map();
+    this.#cursorsDirty = new Set();
   }
 
   // Durable identity: a secret playerKey maps to a stable public playerId.
@@ -509,6 +520,37 @@ class TiciTacaToeyGameEngine implements GameEngine {
           }
           break;
         }
+        // Presence. Only seated players hover - spectators watch, they do
+        // not point - and only in a game that is actually being played.
+        // CURSOR_OFF_BOARD in either coordinate withdraws the cursor.
+        case MessageTypes.CURSOR: {
+          const game = this.games[message.gameId];
+          if (!game || game.status !== GameStatus.GAME_IN_PROGRESS) {
+            return fail(ErrorCodes.GAME_NOT_FOUND);
+          }
+          if (!game.players.includes(message.playerId)) {
+            return fail(ErrorCodes.PLAYER_NOT_PART_OF_GAME);
+          }
+          if (
+            !Number.isInteger(message.coordinateX) ||
+            !Number.isInteger(message.coordinateY)
+          ) {
+            return fail(ErrorCodes.BAD_REQUEST);
+          }
+          const off =
+            message.coordinateX === CURSOR_OFF_BOARD ||
+            message.coordinateY === CURSOR_OFF_BOARD;
+          if (
+            !off &&
+            (message.coordinateX < 0 ||
+              message.coordinateX >= game.boardSize ||
+              message.coordinateY < 0 ||
+              message.coordinateY >= game.boardSize)
+          ) {
+            return fail(ErrorCodes.BAD_REQUEST);
+          }
+          break;
+        }
         case MessageTypes.FORFEIT: {
           const game = this.games[message.gameId];
           if (!game || game.status !== GameStatus.GAME_IN_PROGRESS) {
@@ -585,6 +627,46 @@ class TiciTacaToeyGameEngine implements GameEngine {
         };
         break;
       }
+      // Presence: record where this seat is hovering. `this.games` is not
+      // touched at all - a cursor is not game state, so nothing here can
+      // reach the board, the notation, or the archive.
+      case MessageTypes.CURSOR: {
+        const game = this.games[message.gameId];
+        const seat = game.players.indexOf(message.playerId);
+        if (seat < 0) {
+          break;
+        }
+        const seats =
+          this.#cursors.get(message.gameId) ??
+          new Map<number, { x: number; y: number }>();
+        if (
+          message.coordinateX === CURSOR_OFF_BOARD ||
+          message.coordinateY === CURSOR_OFF_BOARD
+        ) {
+          // Withdraw it, but only mark the game dirty if there was
+          // something to withdraw - an idle pointer must not generate
+          // flush work forever.
+          if (!seats.delete(seat)) {
+            break;
+          }
+        } else {
+          const current = seats.get(seat);
+          if (
+            current &&
+            current.x === message.coordinateX &&
+            current.y === message.coordinateY
+          ) {
+            break;
+          }
+          seats.set(seat, {
+            x: message.coordinateX,
+            y: message.coordinateY,
+          });
+        }
+        this.#cursors.set(message.gameId, seats);
+        this.#cursorsDirty.add(message.gameId);
+        break;
+      }
       case MessageTypes.CLAIM_HANDLE: {
         const db = this.#db;
         if (!db) {
@@ -629,6 +711,11 @@ class TiciTacaToeyGameEngine implements GameEngine {
           break;
         }
         this.players[message.playerId] = { ...player, connected: false };
+        // Withdraw their ghost immediately. The player may well resume
+        // inside the grace window, but a cursor that hovers on for a
+        // minute after someone's laptop closed is a lie about who is in
+        // the room.
+        this.#withdrawCursors(message.playerId);
         const existingTimer = this.#graceTimers.get(message.playerId);
         if (existingTimer) {
           clearTimeout(existingTimer);
@@ -710,6 +797,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
           teamCount: message.teamCount ?? 0,
           winningTeam: -1,
           openSeats: message.openSeats === true,
+          showCursors: message.showCursors === true,
           players: [message.playerId],
           spectators: [],
           winner: "",
@@ -1229,6 +1317,148 @@ class TiciTacaToeyGameEngine implements GameEngine {
         delete this.games[game.gameId];
       }
     });
+    // Cursors belong to games; sweep is where anything that outlived its
+    // game gets collected. The flush drops entries as it notices them, but
+    // a game nobody hovered in again would never be noticed - so this is
+    // the backstop that keeps presence memory flat forever.
+    this.#cursors.forEach((_seats, gameId) => {
+      if (!this.games[gameId]) {
+        this.#cursors.delete(gameId);
+        this.#cursorsDirty.delete(gameId);
+      }
+    });
+  }
+
+  // Drop one player's cursor from every game they are hovering in. Costs
+  // O(games with live cursors), which is why it is only ever called on
+  // rare paths - a disconnect, not a move.
+  #withdrawCursors(playerId: string) {
+    this.#cursors.forEach((seats, gameId) => {
+      const game = this.games[gameId];
+      if (!game) {
+        return;
+      }
+      const seat = game.players.indexOf(playerId);
+      if (seat >= 0 && seats.delete(seat)) {
+        this.#cursorsDirty.add(gameId);
+      }
+    });
+  }
+
+  // Presence broadcast. Called on a short interval by the server, never
+  // per-message: coalescing is what makes cursors affordable. Ten players
+  // and fifteen spectators would otherwise be 24 sends per pointer move;
+  // this is at most (teams + 1) payloads per game per tick, whatever the
+  // player count, and only for games where something actually moved.
+  //
+  // Each payload carries every cursor its audience may see, including the
+  // recipient's own seat - clients draw their own ghost locally with no
+  // round trip, and skip their own seat here. Sending one payload per
+  // audience rather than one per person is the whole point.
+  flushCursors() {
+    if (this.#cursors.size === 0 && this.#cursorsDirty.size === 0) {
+      return;
+    }
+    // A game that just ended leaves ghosts behind: the last CURSOR arrived
+    // while it was still in progress, and no further message will come
+    // (validation refuses cursors in a finished game), so nothing would
+    // ever mark it dirty again. Rather than hooking every completion path
+    // - win, draw, timeout, forfeit, abandon, and whatever is added next -
+    // the flush notices for itself. The scan is over games with a live
+    // pointer in them, not over all games.
+    this.#cursors.forEach((_seats, gameId) => {
+      const game = this.games[gameId];
+      if (!game || game.status !== GameStatus.GAME_IN_PROGRESS) {
+        this.#cursorsDirty.add(gameId);
+      }
+    });
+    if (this.#cursorsDirty.size === 0) {
+      return;
+    }
+    const dirty = Array.from(this.#cursorsDirty);
+    this.#cursorsDirty.clear();
+    dirty.forEach((gameId) => {
+      const game = this.games[gameId];
+      const seats = this.#cursors.get(gameId);
+      if (!seats) {
+        return;
+      }
+      // A finished or vanished game has no live cursors, and the last
+      // flush a game gets is the empty one that clears every ghost.
+      if (!game || game.status !== GameStatus.GAME_IN_PROGRESS) {
+        this.#cursors.delete(gameId);
+        if (game) {
+          this.#sendCursors(game, [], true);
+        }
+        return;
+      }
+      const all: CursorTuple[] = Array.from(seats, ([seat, cell]) => [
+        seat,
+        cell.x,
+        cell.y,
+      ]);
+      if (seats.size === 0) {
+        this.#cursors.delete(gameId);
+      }
+      this.#sendCursors(game, all, true);
+    });
+  }
+
+  // Fan one cursor set out to the audiences allowed to see it. Spectators
+  // always see everything - watching is the whole reason they are here.
+  // Players see everything when the game was started with showCursors,
+  // otherwise only their own team (and in a teamless game, nothing: there
+  // is no one whose cursor they are entitled to).
+  #sendCursors(game: Game, cursors: CursorTuple[], toSpectators: boolean) {
+    const spectators = toSpectators
+      ? getConnectedSpectators(this.players, game)
+      : [];
+    if (spectators.length > 0) {
+      const payload = JSON.stringify({
+        type: MessageTypes.CURSORS,
+        gameId: game.gameId,
+        cursors,
+      });
+      spectators.forEach((spectator) => safeSend(spectator.connection, payload));
+    }
+    if (!game.showCursors && game.teamCount <= 0) {
+      return;
+    }
+    const players = getConnectedPlayers(this.players, game);
+    if (players.length === 0) {
+      return;
+    }
+    if (game.showCursors) {
+      const payload = JSON.stringify({
+        type: MessageTypes.CURSORS,
+        gameId: game.gameId,
+        cursors,
+      });
+      players.forEach((player) => safeSend(player.connection, payload));
+      return;
+    }
+    // Teams, cursors private: one payload per team, built once and sent to
+    // everyone on it.
+    const byTeam = new Map<number, string>();
+    players.forEach((player) => {
+      const seat = game.players.indexOf(player.playerId);
+      if (seat < 0) {
+        return;
+      }
+      const team = teamOfSeat(seat, game.teamCount);
+      let payload = byTeam.get(team);
+      if (payload === undefined) {
+        payload = JSON.stringify({
+          type: MessageTypes.CURSORS,
+          gameId: game.gameId,
+          cursors: cursors.filter(
+            ([cursorSeat]) => teamOfSeat(cursorSeat, game.teamCount) === team
+          ),
+        });
+        byTeam.set(team, payload);
+      }
+      safeSend(player.connection, payload);
+    });
   }
 
   // functions with side effects - websocket send operation
@@ -1283,6 +1513,11 @@ class TiciTacaToeyGameEngine implements GameEngine {
       case MessageTypes.PLAYER_DISCONNECT:
         // Silent: the grace window may end in a resume. Others learn about
         // it only if the abandon actually happens.
+        break;
+      case MessageTypes.CURSOR:
+        // Nothing to send here on purpose: flushCursors() does the
+        // broadcasting on its own interval. Answering per message is
+        // exactly the cost this design exists to avoid.
         break;
       case MessageTypes.LIST_GAMES: {
         if (message.connection) {

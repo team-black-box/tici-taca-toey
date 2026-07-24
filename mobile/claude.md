@@ -41,6 +41,14 @@ deep links, and store prep.
 - Machines are badged with a text mark rather than an icon (the terminal
   look is text): gear for an SDK robot, spark for an MCP agent - see
   `kindMark` in `theme.ts`.
+- Live cursors are **receive-only** here: a finger has no hover, so the
+  app draws everyone else's ghosts (`CursorGhosts` in `GameScreen.tsx`,
+  fed by `subscribeToCursors` in `state.ts`) and never sends a `CURSOR`.
+  Presence stays out of the store for the same reason as on the web -
+  reducing it would re-render every subscribed screen several times a
+  second. Hosting a game with cursors public still works from the lobby
+  form; the game header badges it. Who sees whom is the server's call,
+  see `server/claude.md`.
 - Move impact is `src/burst.tsx`: the web draws sparks on a canvas, which
   React Native does not have, and a graphics library is not a dependency
   this app will take. Instead a small fixed pool of `Animated` views run

@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   Share,
+  StyleSheet,
   Text,
   View,
   useWindowDimensions,
@@ -33,8 +34,14 @@ import {
   joinGame,
   forfeit,
   getShareUrl,
+  subscribeToCursors,
 } from "../state";
-import { Game, GameInteractionTypes, GameStatus } from "../model";
+import {
+  CursorTuple,
+  Game,
+  GameInteractionTypes,
+  GameStatus,
+} from "../model";
 import { decodeTtn, boardAtFrame } from "../ttn";
 import type { RootStackParamList } from "../navigation";
 
@@ -98,6 +105,69 @@ const StrikeCell = ({
   );
 };
 
+// The other people in this game, hovering. Receive-only: a finger has no
+// hover, so this app draws everyone else's cursors and never sends one.
+// Whether an opponent's cursor arrives at all is the server's call - see
+// Game.showCursors; teammates and spectators always get them.
+const CursorGhosts = ({
+  game,
+  mySeat,
+  cell,
+}: {
+  game: Game;
+  mySeat: number;
+  cell: number;
+}) => {
+  const [cursors, setCursors] = useState<CursorTuple[]>([]);
+
+  useEffect(
+    () => subscribeToCursors(game.gameId, setCursors),
+    [game.gameId]
+  );
+
+  if (game.status !== GameStatus.GAME_IN_PROGRESS) {
+    return null;
+  }
+
+  // The board lays cells out with a 4px gap, so a cell's origin is simply
+  // its index times the pitch.
+  const pitch = cell + 4;
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {cursors
+        .filter(([seat]) => seat !== mySeat)
+        .map(([seat, x, y]) => (
+          <View
+            key={seat}
+            style={{
+              position: "absolute",
+              left: y * pitch,
+              top: x * pitch,
+              width: cell,
+              height: cell,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Text
+              style={[
+                MONO,
+                {
+                  fontSize: cell * 0.4,
+                  fontWeight: "700",
+                  opacity: 0.45,
+                  color: C.syms[sideOfSeat(seat, game.teamCount) % 10],
+                },
+              ]}
+            >
+              {SYMBOLS[sideOfSeat(seat, game.teamCount) % 10]}
+            </Text>
+          </View>
+        ))}
+    </View>
+  );
+};
+
 const Board = ({ game, you }: { game: Game; you: string }) => {
   const { width } = useWindowDimensions();
   const struck = useLastPlacement(game.positions);
@@ -106,6 +176,11 @@ const Board = ({ game, you }: { game: Game; you: string }) => {
   );
   return (
     <View style={{ marginVertical: 10 }}>
+      <CursorGhosts
+        game={game}
+        mySeat={game.players.indexOf(you)}
+        cell={cell}
+      />
       {game.positions.map((row, x) => (
         <View key={x} style={{ flexDirection: "row", gap: 4, marginBottom: 4 }}>
           {row.map((value, y) => {
@@ -319,6 +394,12 @@ const GameScreen = () => {
             {game.name}
           </Text>
           <Badge text={status.text} color={status.color} />
+          {/* Cursor visibility is fixed at game start, so the game says
+              which mode it is in - being watched unknowingly would be a
+              trap rather than a bluff. */}
+          {game.showCursors && (
+            <Badge text="👁 CURSORS VISIBLE" color={C.accent} />
+          )}
         </View>
         {/* Always say what winning looks like, so nobody has to guess. */}
         <Text style={[MONO, { color: C.dim, fontSize: 11, marginBottom: 8 }]}>

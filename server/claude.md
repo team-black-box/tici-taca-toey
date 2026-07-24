@@ -65,7 +65,8 @@ Clients send JSON messages; the server enriches each with the
 connection-scoped `playerId`, a `gameId` (generated if absent), and the
 connection, then runs it through the engine.
 
-Message types: `REGISTER_PLAYER`, `REGISTER_ROBOT`, `REQUEST_ROBOT`,
+Message types: `CURSOR` (presence - see Presence below),
+`REGISTER_PLAYER`, `REGISTER_ROBOT`, `REQUEST_ROBOT`,
 `START_GAME`, `JOIN_GAME` (a spectator may send one to take an open seat -
 they are dropped from the spectator list so they are not counted twice),
 `MAKE_MOVE`, `FORFEIT` (concede an in-progress game: two sides left, the
@@ -83,6 +84,54 @@ Response-only: `GAME_COMPLETE` (sent when a game reaches `GAME_WON`,
 Spectators receive every broadcast re-typed as `SPECTATE_GAME`. Validation
 failures are sent only to the offending player as
 `{ type: "ERROR", error: <code>, message }`.
+
+## Presence (Live Cursors)
+
+Players hover; the other people in the game see a ghost of their mark over
+the cell they are considering. A cursor is **presence, not game state**:
+it never touches `Game`, the TTN line, or the archive, and the test
+`cursors.test.ts` pins that by snapshotting the game around a cursor.
+
+- `CURSOR { gameId, coordinateX, coordinateY }` comes from seated players
+  only - spectators watch, they do not point - and only in a game that is
+  `GAME_IN_PROGRESS`. `CURSOR_OFF_BOARD` (-1) in either coordinate
+  withdraws it. The engine stores it in `#cursors` (gameId -> seat ->
+  cell), a map deliberately outside `this.games`.
+- `flushCursors()` broadcasts on a 100ms interval driven by `server.ts` -
+  **never per message**. Coalescing is the whole design: ten players and
+  fifteen spectators would otherwise be 24 sends per pointer move, and
+  this is at most (teams + 1) payloads per game per tick whatever the
+  player count. Only games whose cursors changed are considered.
+- `CURSORS { gameId, cursors: [[seat, x, y], ...] }` is keyed by **seat**,
+  not playerId: a seat is all a client needs to pick the symbol and its
+  neon, and it keeps playerIds out of a message every spectator receives.
+  The payload is the whole current set, not a delta, so a dropped message
+  costs one stale frame and then corrects itself.
+- **Who sees what**: spectators always see every cursor. Players see
+  everything when the game was started with `showCursors` (a `Game` field
+  fixed at START_GAME and never changed after), otherwise only their own
+  team - and in a teamless private game, nothing at all. One payload is
+  built per audience and sent to everyone in it; it includes the
+  recipient's own seat, which clients skip because they draw their own
+  ghost locally with no round trip.
+- **Cursors have their own rate bucket** (`TTT_CURSOR_RATE_CAPACITY` /
+  `TTT_CURSOR_RATE_REFILL`, 20 / 12 per second). Sharing the main bucket
+  was the obvious thing and was wrong: a pointer sweeping a 12x12 board
+  would spend tokens a *move* needs, so flood protection would start
+  rejecting moves and then close the socket on strikes because someone
+  waved their mouse. `server.ts` still spends a main token first - so an
+  unparseable flood is throttled exactly as before - and refunds it only
+  if the cursor bucket can pay instead. A cursor flood therefore drains
+  the main bucket and meets the normal protection.
+- Cursors run quiet: no per-message notify, no error reply on a rejected
+  one (an error per cursor would only double a flood), and no banner log.
+- **Cleanup**: a disconnect withdraws that player's ghost immediately -
+  it may well resume within the grace window, but a cursor hovering on
+  after someone's laptop closed is a lie about who is in the room. A game
+  that ends gets exactly one clearing flush: `flushCursors` notices for
+  itself that the game is no longer in progress rather than hooking every
+  completion path (win, draw, timeout, forfeit, abandon, and whatever is
+  added next). `sweep` collects entries whose game is gone.
 
 ## Identity, Handles, and Player Kinds
 

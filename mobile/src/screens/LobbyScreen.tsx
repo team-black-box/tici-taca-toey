@@ -54,6 +54,7 @@ const LobbyScreen = () => {
   const [winCount, setWinCount] = useState("1");
   const [teams, setTeams] = useState(0);
   const [openToStrangers, setOpenToStrangers] = useState(false);
+  const [showCursors, setShowCursors] = useState(false);
   const [timed, setTimed] = useState(false);
   const [minutes, setMinutes] = useState("3");
 
@@ -308,6 +309,22 @@ const LobbyScreen = () => {
           />
           <Text style={ui.label}>LET STRANGERS JOIN</Text>
         </View>
+        {/* This phone cannot send a cursor - a finger has no hover - but
+            it can still host a game where everyone else's are public. */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8 }}>
+          <Switch
+            value={showCursors}
+            onValueChange={setShowCursors}
+            trackColor={{ true: C.accent, false: C.border }}
+            thumbColor={C.fg}
+          />
+          <Text style={ui.label}>SHOW CURSORS TO EVERYONE</Text>
+        </View>
+        <Text style={[MONO, { color: C.dim, fontSize: 10, marginBottom: 4 }]}>
+          {showCursors
+            ? "opponents will see each other's cursors - a hover can be a bluff"
+            : "only teammates and spectators will see cursors"}
+        </Text>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginVertical: 8 }}>
           <Switch
             value={timed}
@@ -332,7 +349,8 @@ const LobbyScreen = () => {
               timed ? 1000 : undefined,
               Number(winCount) > 1 ? Number(winCount) : undefined,
               chosenTeams > 0 ? chosenTeams : undefined,
-              openToStrangers
+              openToStrangers,
+              showCursors
             )
           }
         />

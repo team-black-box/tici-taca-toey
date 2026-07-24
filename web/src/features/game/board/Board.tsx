@@ -3,9 +3,19 @@ import { useAppSelector } from "../../../state/store";
 import { getActiveGame } from "../../../state/games";
 import { getCurrentPlayerId } from "../../../state/currentPlayer";
 import { makeMove } from "../../../state/actions";
-import { Game, GameStatus } from "../../../common/model";
-import { getSideSymbol, EMPTY_CELL } from "../../../common/symbol";
+import {
+  CURSOR_OFF_BOARD,
+  CursorTuple,
+  Game,
+  GameStatus,
+} from "../../../common/model";
+import { GAME_SYMBOL, getSideSymbol, EMPTY_CELL } from "../../../common/symbol";
 import { ParticleField } from "../../../common/particles";
+import {
+  forgetSentCursor,
+  sendCursor,
+  subscribeToCursors,
+} from "../../../state/cursors";
 
 interface CellProps {
   playerId: string;
@@ -91,6 +101,80 @@ const useLastPlacement = (positions: string[][] | undefined) => {
   return struck;
 };
 
+// The other people in this game, hovering. Its own component on purpose:
+// cursors arrive several times a second, and keeping the state here means
+// a pointer moving re-renders ten small spans rather than the whole board.
+//
+// Ghosts are positioned against the real cell elements rather than by grid
+// arithmetic, so the 4px gap, a resize, and a `container-type` board all
+// stay correct without this file knowing the stylesheet.
+const CursorLayer = ({
+  game,
+  mySeat,
+  wrapRef,
+}: {
+  game: Game;
+  mySeat: number;
+  wrapRef: React.RefObject<HTMLDivElement | null>;
+}) => {
+  const [cursors, setCursors] = useState<CursorTuple[]>([]);
+  const layerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(
+    () => subscribeToCursors(game.gameId, setCursors),
+    [game.gameId]
+  );
+
+  // The payload is one broadcast for the whole audience, so it contains
+  // our own seat too - we already know where our own pointer is.
+  const visible = cursors.filter(([seat]) => seat !== mySeat);
+
+  useLayoutEffect(() => {
+    const layer = layerRef.current;
+    const wrap = wrapRef.current;
+    if (!layer || !wrap) {
+      return;
+    }
+    Array.from(layer.children).forEach((node) => {
+      const ghost = node as HTMLElement;
+      const cell = wrap.querySelector<HTMLElement>(
+        `[data-cell="${ghost.dataset.at}"]`
+      );
+      if (!cell) {
+        return;
+      }
+      ghost.style.transform = `translate(${
+        cell.offsetLeft + cell.offsetWidth / 2
+      }px, ${cell.offsetTop + cell.offsetHeight / 2}px) translate(-50%, -50%)`;
+      ghost.style.fontSize = `${Math.max(11, cell.offsetWidth * 0.4)}px`;
+    });
+  }, [visible, wrapRef]);
+
+  if (game.status !== GameStatus.GAME_IN_PROGRESS) {
+    return null;
+  }
+
+  return (
+    <div className="cursor-layer" ref={layerRef} aria-hidden="true">
+      {visible.map(([seat, x, y]) => {
+        const symbol =
+          GAME_SYMBOL[
+            (game.teamCount > 0 ? seat % game.teamCount : seat) % 10
+          ];
+        return (
+          <span
+            key={seat}
+            className={`cursor-ghost ${symbol.color}`}
+            data-at={`${x}:${y}`}
+          >
+            {symbol.symbol}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
 // Nobody wants sparks flying if they have asked the system for calm.
 const prefersReducedMotion = () =>
   typeof window !== "undefined" &&
@@ -172,11 +256,61 @@ const Board = () => {
   if (!game) {
     return null;
   }
+
+  const mySeat = game.players.indexOf(currentPlayer);
+  const iAmPlaying =
+    mySeat >= 0 && game.status === GameStatus.GAME_IN_PROGRESS;
+
+  // Which cell the pointer is over, from the grid's own geometry. The
+  // cells are <button>s and a disabled button dispatches no pointer
+  // events at all, so listening on them would go quiet the moment it is
+  // not your turn - exactly when you are most likely to be hovering.
+  const cellFromPointer = (
+    event: React.PointerEvent<HTMLDivElement>
+  ): { x: number; y: number } | null => {
+    const board = event.currentTarget;
+    const rect = board.getBoundingClientRect();
+    const gap = parseFloat(window.getComputedStyle(board).columnGap) || 0;
+    const pitch = (rect.width + gap) / game.boardSize;
+    if (!(pitch > 0)) {
+      return null;
+    }
+    // x is the row (down), y the column (across) - the board's convention.
+    const x = Math.floor((event.clientY - rect.top) / pitch);
+    const y = Math.floor((event.clientX - rect.left) / pitch);
+    if (x < 0 || x >= game.boardSize || y < 0 || y >= game.boardSize) {
+      return null;
+    }
+    return { x, y };
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!iAmPlaying || event.pointerType === "touch") {
+      return;
+    }
+    const cell = cellFromPointer(event);
+    if (cell) {
+      sendCursor(game.gameId, cell.x, cell.y);
+    } else {
+      sendCursor(game.gameId, CURSOR_OFF_BOARD, CURSOR_OFF_BOARD);
+    }
+  };
+
+  const onPointerLeave = () => {
+    if (!iAmPlaying) {
+      return;
+    }
+    sendCursor(game.gameId, CURSOR_OFF_BOARD, CURSOR_OFF_BOARD);
+    forgetSentCursor();
+  };
+
   return (
     <div className="board-wrap" ref={wrapRef}>
       <div
         className="board"
         style={{ "--n": game.boardSize } as CSSProperties}
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
       >
         {game.positions
           .flatMap((each) => each)
@@ -196,7 +330,9 @@ const Board = () => {
             );
           })}
       </div>
-      {/* Sparks sit above the board and never intercept a click. */}
+      {/* Everyone else's pointer, and then the sparks on top. Neither
+          layer ever intercepts a click. */}
+      <CursorLayer game={game} mySeat={mySeat} wrapRef={wrapRef} />
       <canvas className="board-fx" ref={canvasRef} aria-hidden="true" />
     </div>
   );

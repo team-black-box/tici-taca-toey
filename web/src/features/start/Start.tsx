@@ -35,6 +35,7 @@ const Start = () => {
   const [winningSequenceCount, setWinningSequenceCount] = useState("1");
   const [teamCount, setTeamCount] = useState("0");
   const [openToStrangers, setOpenToStrangers] = useState(false);
+  const [showCursors, setShowCursors] = useState(false);
   const [timed, setTimed] = useState(false);
   const [timePerPlayer, setTimePerPlayer] = useState("180000");
   const [incrementPerPlayer, setIncrementPerPlayer] = useState("1000");
@@ -56,7 +57,8 @@ const Start = () => {
         ? Number(winningSequenceCount)
         : undefined,
       chosenTeams > 0 ? chosenTeams : undefined,
-      openToStrangers
+      openToStrangers,
+      showCursors
     );
   };
 
@@ -158,6 +160,25 @@ const Start = () => {
         />
         let strangers join
       </label>
+      <label
+        className="check"
+        title="everyone sees where everyone is hovering - including your opponents, so a hover can be a bluff"
+      >
+        <input
+          type="checkbox"
+          checked={showCursors}
+          onChange={(event) => setShowCursors(event.target.checked)}
+        />
+        show cursors to everyone
+      </label>
+      {/* Say what it actually costs you, since it cannot be turned off
+          once the game starts. Teammates and spectators see cursors
+          either way - this is only about opponents. */}
+      <p className="check-note">
+        {showCursors
+          ? "opponents will see your cursor - hover somewhere you do not mean it and that is a bluff"
+          : "only teammates and spectators will see your cursor"}
+      </p>
       <label className="check">
         <input
           type="checkbox"

@@ -114,6 +114,25 @@ Run from inside `web/`:
   no game and never ran again. The loop releases its frame callback when
   nothing is alive, and clears on `visibilitychange` so a backgrounded tab
   does not come back to a frozen burst.
+- Live cursors (`src/state/cursors.ts` + `CursorLayer` in `Board.tsx`):
+  the other people in a game appear as dim ghosts of their own mark over
+  the cell they are hovering. Three things are load-bearing:
+  **they never enter the store** - `reduce()` runs six reducers and
+  notifies every listener, so routing presence through it would re-render
+  the whole app several times a second for a decoration; instead
+  `store.ts` forks `CURSORS` to a side channel that only the board
+  subscribes to. **Sends are coalesced** to ~90ms with the newest
+  position winning, and only on a cell *change*. And **the pointer
+  listener sits on `.board`, not on the cells**: cells are `<button>`s,
+  and a disabled button dispatches no pointer events at all, so listening
+  on them would go silent exactly when it is not your turn - which is
+  when you are most likely to be hovering. Ghosts are positioned against
+  the real cell elements (`data-cell`), so the grid gap and resizes stay
+  correct without this code knowing the stylesheet.
+  Who sees whom is the server's call (`server/claude.md`): teammates and
+  spectators always, opponents only when the host ticked "show cursors to
+  everyone" at start - which the game header then says plainly, because
+  being watched without knowing it would be a trap rather than a bluff.
 - The logo is an inline SVG component (`src/common/logo.tsx`), mirrored as
   `public/favicon.svg` - keep the two in sync.
 - `src/features/` - one folder per UI feature, unchanged from the 2020

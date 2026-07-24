@@ -25,6 +25,10 @@ export interface StartGameMessage {
   teamCount?: number;
   // Start already open to strangers from the lobby.
   openSeats?: boolean;
+  // Let opponents see everyone's cursor too, not just teammates and
+  // spectators. Fixed at start; a hover then becomes public, and bluffing
+  // with one is fair game.
+  showCursors?: boolean;
   timePerPlayer?: number;
   incrementPerPlayer?: number;
 }
@@ -83,8 +87,19 @@ export interface ForfeitMessage {
   gameId: string;
 }
 
+// Presence: where this player's pointer is, in cell coordinates.
+// CURSOR_OFF_BOARD in either coordinate withdraws it. Fire-and-forget -
+// the server answers on its own flush interval, never per message.
+export interface CursorMessage {
+  type: MessageTypes.CURSOR;
+  gameId: string;
+  coordinateX: number;
+  coordinateY: number;
+}
+
 export type Message =
   | RegisterPlayerMessage
+  | CursorMessage
   | StartGameMessage
   | RequestRobotMessage
   | JoinGameMessage

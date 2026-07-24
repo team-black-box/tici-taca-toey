@@ -25,6 +25,9 @@ export interface StartGameMessage {
   teamCount?: number;
   // Start already open to strangers from the lobby.
   openSeats?: boolean;
+  // Let opponents see everyone's cursor too, not just teammates and
+  // spectators. Fixed at start - see Game.showCursors.
+  showCursors?: boolean;
   timePerPlayer?: number;
   incrementPerPlayer?: number;
 }

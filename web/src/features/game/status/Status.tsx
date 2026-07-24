@@ -153,6 +153,17 @@ const Status = () => {
           gg (forfeit)
         </button>
       )}
+      {/* Cursor visibility cannot be changed once a game starts, so the
+          game says plainly which mode it is in - being watched without
+          knowing it would not be a bluff, it would be a trap. */}
+      {game.showCursors && (
+        <div
+          className="badge badge--live"
+          title="every player can see where everyone else is hovering - so a hover you do not mean is a bluff"
+        >
+          👁 cursors visible
+        </div>
+      )}
       {[GameStatus.GAME_IN_PROGRESS, GameStatus.WAITING_FOR_PLAYERS].includes(
         game.status
       ) && <Share gameId={game.gameId} gameStatus={game.status} />}

@@ -36,6 +36,9 @@ export interface GameEngine {
   transition: (message: Message) => void;
   notify: (message: Message) => void;
   notifyError: (error: GameError) => void;
+  // Presence: broadcast the cursors that moved since the last call. The
+  // server drives this on its own interval - never per message.
+  flushCursors: () => void;
 }
 
 // --- incoming messages -----------------------------------------------------
@@ -87,6 +90,9 @@ export interface StartGameMessage {
   teamCount?: number;
   // Start the game already open to strangers from the lobby.
   openSeats?: boolean;
+  // Presence: let opponents see everyone's cursor, not just teammates and
+  // spectators. Fixed at start - see Game.showCursors.
+  showCursors?: boolean;
   connection: PlayerConnection;
   playerId: string;
   gameId: string;
@@ -185,6 +191,19 @@ export interface ListMyGamesMessage {
   gameId?: string;
 }
 
+// Presence: where this player's pointer is hovering, in cell coordinates.
+// Fire-and-forget - the engine stores it outside the game and a periodic
+// flush broadcasts it. CURSOR_OFF_BOARD in either coordinate means the
+// pointer left the board.
+export interface CursorMessage {
+  type: MessageTypes.CURSOR;
+  gameId: string;
+  coordinateX: number;
+  coordinateY: number;
+  connection?: PlayerConnection;
+  playerId: string;
+}
+
 export interface PlayerTimeoutMessage {
   type: MessageTypes.PLAYER_TIMEOUT;
   playerId: string;
@@ -208,6 +227,7 @@ export type Message =
   | ListGamesMessage
   | ListMyGamesMessage
   | ClaimHandleMessage
+  | CursorMessage
   | PlayerTimeoutMessage;
 
 export interface GameError {

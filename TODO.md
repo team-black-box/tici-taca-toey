@@ -28,6 +28,18 @@ exquisite taste in design.
 
 ## Completed
 
+- Live cursors (2026-07-24): the other people in a game now appear as dim
+  ghosts of their own mark over the cell they are considering, so a board
+  feels inhabited between moves. Teammates and spectators always see
+  them; opponents only when the host ticks "show cursors to everyone" at
+  start, which the game header then says plainly - so hovering a cell you
+  have no intention of taking is a legitimate bluff. Presence is never
+  game state: it never touches the board, the notation, or the archive,
+  it rides its own rate budget so a moving pointer can never cost a
+  player the tokens their moves need, and the server coalesces it into
+  one broadcast per audience every 100ms. Mobile draws cursors and never
+  sends one - a finger has no hover. ([task file](./tasks/live-cursors.md))
+
 - Replays name their players, and Dependabot goes security-only
   (2026-07-24): a replay now opens with the goal in plain words and a seat
   legend saying who was which symbol - team, machine badge, and who won.

@@ -93,6 +93,20 @@ const RATE_CAPACITY = Number(process.env.TTT_RATE_CAPACITY ?? 40);
 const RATE_REFILL_PER_SECOND = Number(process.env.TTT_RATE_REFILL ?? 15);
 const RATE_HARD_LIMIT_MULTIPLIER = 4;
 
+// Cursors get their own bucket. Sharing the main one looked simpler and
+// was wrong: a pointer sweeping a 12x12 board spends tokens a move needs,
+// so the flood protection would start rejecting *moves* - and then close
+// the socket on strikes - because someone waved their mouse. Presence must
+// never be able to cost a player their game. This bucket is deliberately
+// small; the client coalesces to ~10/s and only sends on a cell change.
+const CURSOR_RATE_CAPACITY = Number(process.env.TTT_CURSOR_RATE_CAPACITY ?? 20);
+const CURSOR_RATE_REFILL_PER_SECOND = Number(
+  process.env.TTT_CURSOR_RATE_REFILL ?? 12
+);
+// How often coalesced cursor positions go out. 100ms reads as live without
+// putting the server anywhere near per-message broadcasting.
+const CURSOR_FLUSH_INTERVAL_MS = 100;
+
 // Connections, not games, are what consume memory: bench/sockets.bench.ts
 // measured ~365 KB of RSS per socket, so ~2000 is the practical ceiling of
 // a 1 GB box. Refusing the upgrade past that keeps the server responsive
@@ -123,6 +137,9 @@ interface SocketData {
   tokens: number;
   lastRefill: number;
   strikes: number;
+  // Presence has its own budget - see CURSOR_RATE_CAPACITY.
+  cursorTokens: number;
+  cursorLastRefill: number;
 }
 
 // Optional TLS for running without a reverse proxy. Most deployments should
@@ -255,6 +272,8 @@ const server = Bun.serve<SocketData>({
         tokens: RATE_CAPACITY,
         lastRefill: Date.now(),
         strikes: 0,
+        cursorTokens: CURSOR_RATE_CAPACITY,
+        cursorLastRefill: Date.now(),
       },
     });
     if (upgraded) {
@@ -320,6 +339,29 @@ const server = Bun.serve<SocketData>({
         return;
       }
 
+      // Presence rides its own budget. The main token was already spent
+      // above - deliberately, so an unparseable flood is throttled exactly
+      // as before - and is refunded here only if the cursor bucket can pay
+      // instead. A cursor flood therefore drains the *main* bucket and
+      // meets the normal strike-and-close protection, while ordinary
+      // pointer movement never costs a player the tokens their moves need.
+      if ("type" in message && message.type === MessageTypes.CURSOR) {
+        ws.data.cursorTokens = Math.min(
+          CURSOR_RATE_CAPACITY,
+          ws.data.cursorTokens +
+            ((now - ws.data.cursorLastRefill) / 1000) *
+              CURSOR_RATE_REFILL_PER_SECOND
+        );
+        ws.data.cursorLastRefill = now;
+        if (ws.data.cursorTokens < 1) {
+          // Dropped in silence: answering a cursor flood with an error per
+          // message would only double the traffic.
+          return;
+        }
+        ws.data.cursorTokens -= 1;
+        ws.data.tokens = Math.min(RATE_CAPACITY, ws.data.tokens + 1);
+      }
+
       // Durable identity: registrations may carry a secret playerKey that
       // resolves to a stable playerId, enabling reconnect-and-resume. All
       // later messages on this socket act as that player.
@@ -351,9 +393,14 @@ const server = Bun.serve<SocketData>({
             : crypto.randomUUID(),
         connection: ws,
       } as Message;
+      // Cursors run quiet: no per-message notify (flushCursors broadcasts
+      // on its own interval), no error reply on a rejected one, and no
+      // banner log - a pointer moving would otherwise print the whole
+      // server roster ten times a second.
+      const isCursor = enrichedMessage.type === MessageTypes.CURSOR;
       engine
-        .play(enrichedMessage)
-        .then(log)
+        .play(enrichedMessage, !isCursor)
+        .then(isCursor ? () => undefined : log)
         .catch((error) => console.error("Engine play failed", error));
     },
     close(ws) {
@@ -381,6 +428,16 @@ setInterval(() => {
     console.error("Sweep failed", error);
   }
 }, SWEEP_INTERVAL_MS);
+
+// Presence: push the cursors that moved. Coalescing here rather than
+// broadcasting per message is what keeps a busy game affordable.
+setInterval(() => {
+  try {
+    engine.flushCursors();
+  } catch (error) {
+    console.error("Cursor flush failed", error);
+  }
+}, CURSOR_FLUSH_INTERVAL_MS);
 
 // Keep live connections alive through proxies and let dead ones surface as
 // close events.
