@@ -800,6 +800,47 @@ input::placeholder {
 
 .replay-controls { display: flex; gap: 8px; margin: 10px 0; }
 
+/* Who was which symbol. Wraps rather than scrolls - ten seats on a phone
+   should stack, not disappear off the edge. */
+.replay-seats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.replay-seat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+.replay-seat.is-winner { border-color: var(--accent); }
+.replay-seat.is-next {
+  border-color: var(--accent);
+  box-shadow: var(--glow-soft);
+}
+.replay-seat-mark { font-size: 15px; font-weight: 700; }
+.replay-seat-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.replay-seat-won {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 9px;
+}
+
 .board-list { list-style: none; margin: 10px 0 0; padding: 0; }
 .board-row {
   display: grid;

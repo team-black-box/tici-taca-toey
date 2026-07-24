@@ -3,6 +3,7 @@ import { useAppSelector } from "../../state/store";
 import { getMyGames } from "../../state/history";
 import { getCurrentPlayerName } from "../../state/currentPlayer";
 import { navigate } from "../../common/router";
+import { replayPath } from "../../common/replay";
 import { decodeTtn } from "../../common/ttn";
 import { ArchivedGameSummary, GameStatus } from "../../common/model";
 
@@ -95,7 +96,7 @@ const History = () => {
         <div
           key={game.gameId}
           className="tile tile--live"
-          onClick={() => navigate(`/replay/${encodeURIComponent(game.ttn)}`)}
+          onClick={() => navigate(replayPath(game.ttn, game.players))}
           title="replay this game"
         >
           <div>

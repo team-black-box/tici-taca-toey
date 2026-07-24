@@ -28,6 +28,18 @@ exquisite taste in design.
 
 ## Completed
 
+- Replays name their players, and Dependabot goes security-only
+  (2026-07-24): a replay now opens with the goal in plain words and a seat
+  legend saying who was which symbol - team, machine badge, and who won.
+  A TTN line has no names in it by design, so the roster rides in the
+  replay link (`?p=<handle>&k=<kind>` on web, a `roster` route param on
+  mobile) and a bare link still replays, labelled by seat. Dependabot now
+  opens security PRs only (`open-pull-requests-limit: 0` on every
+  ecosystem). Also fixed: `bun run dev` had been crashing on
+  `process is not defined` since the version footer shipped - the bare
+  `process.env` read is now guarded, with the production substitution
+  verified intact.
+
 - Post-launch fixes (2026-07-23): the production leaderboard was empty because
   `getServerHttpBase` kept the socket's `/ws` path, so `/api/*` fetches
   missed - now takes the origin. Also: history/player cards no longer

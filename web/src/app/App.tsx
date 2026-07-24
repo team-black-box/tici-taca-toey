@@ -31,7 +31,7 @@ import { setPlayerKey } from "../state/identity";
 import { APP_VERSION, RELEASE_URL } from "../common/version";
 
 export default function App() {
-  const { type, gameId } = useRoute();
+  const { type, gameId, search } = useRoute();
   const currentlyPlayingGames = useAppSelector(getCurrentlyPlayingGames);
   const currentlySpectatingGames = useAppSelector(getCurrentlySpectatingGames);
   const isConnected = useAppSelector(isConnectedToServer);
@@ -156,7 +156,7 @@ export default function App() {
         </aside>
         <section className="stage">
           {isReplay && gameId ? (
-            <Replay ttn={gameId} />
+            <Replay ttn={gameId} search={search} />
           ) : isLeaderboard ? (
             <LeaderboardPage />
           ) : isPlayer && gameId ? (

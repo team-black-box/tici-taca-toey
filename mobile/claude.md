@@ -32,6 +32,12 @@ deep links, and store prep.
   games, by public handle) feed `ReplayScreen`. They read the server's
   `/api/*` endpoints via helpers in `state.ts` rather than the socket,
   since none of it is live data.
+- `ReplayScreen` shows the goal (`describeGoal`, the same words the game
+  header used) and a seat legend saying who was which symbol. A TTN line
+  carries seats and moves but never names, so the roster travels as an
+  optional `roster` route param, handed over by whoever already knew it -
+  the lobby history list, `PlayerScreen`. The web does the same thing
+  through a query string; without a roster both fall back to "seat 1".
 - Machines are badged with a text mark rather than an icon (the terminal
   look is text): gear for an SDK robot, spark for an MCP agent - see
   `kindMark` in `theme.ts`.

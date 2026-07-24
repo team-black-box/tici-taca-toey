@@ -9,7 +9,8 @@ import {
 import { setActiveGame } from "../../state/actions";
 import { GridIcon, UserIcon, GlassesIcon } from "../../common/icons";
 import { navigate } from "../../common/router";
-import { GameStatus } from "../../common/model";
+import { replayPath } from "../../common/replay";
+import { GameStatus, PlayerKind } from "../../common/model";
 
 interface GameTileProps {
   gameId: string;
@@ -60,7 +61,18 @@ const GameTile = ({ gameId }: GameTileProps) => {
               className="btn btn--ghost tile-replay"
               onClick={(event) => {
                 event.stopPropagation();
-                navigate(`/replay/${encodeURIComponent(game.notation as string)}`);
+                // The notation knows the seats; the store knows who sat in
+                // them. Hand both to the replay.
+                navigate(
+                  replayPath(
+                    game.notation as string,
+                    game.players.map((playerId, seat) => ({
+                      seat,
+                      handle: players[playerId]?.name ?? "",
+                      kind: players[playerId]?.kind ?? PlayerKind.HUMAN,
+                    }))
+                  )
+                );
               }}
             >
               replay

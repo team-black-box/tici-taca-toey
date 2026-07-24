@@ -369,7 +369,10 @@ const LobbyScreen = () => {
                 key={game.gameId}
                 style={ui.tile}
                 onPress={() =>
-                  navigation.navigate("Replay", { ttn: game.ttn })
+                  navigation.navigate("Replay", {
+                    ttn: game.ttn,
+                    roster: game.players,
+                  })
                 }
               >
                 <View>

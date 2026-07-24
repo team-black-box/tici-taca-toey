@@ -112,7 +112,12 @@ const PlayerScreen = () => {
             <Pressable
               key={game.gameId}
               style={ui.tile}
-              onPress={() => navigation.navigate("Replay", { ttn: game.ttn })}
+              onPress={() =>
+                navigation.navigate("Replay", {
+                  ttn: game.ttn,
+                  roster: game.players,
+                })
+              }
             >
               <View>
                 <Badge text={outcome.text} color={outcome.color} />

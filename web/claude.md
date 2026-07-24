@@ -83,7 +83,21 @@ Run from inside `web/`:
 - The replay viewer (`src/features/replay/Replay.tsx`, route
   `/replay/<ttn>`) is fully client-side: the TTN codec lives in
   `shared/ttn.ts` (one copy for every module) and v2 clock tracks render
-  as per-move think times. The URL is the replay.
+  as per-move think times. The URL is the replay. It opens with the same
+  `describeGoal` line the game header showed, and a seat legend saying who
+  was which symbol, with team, machine badge, and a WON mark. The roster
+  cannot come from the notation - a TTN line records seats and moves and
+  deliberately no names - so `src/common/replay.ts` puts it in the query
+  string (`?p=<handle>&k=<kind>` per seat, in seat order) and the callers
+  that already knew it (`History.tsx`, `PlayerPage.tsx`, `GameTile.tsx`)
+  build the link with `replayPath`. A bare `/replay/<ttn>` still replays,
+  labelled "seat 1", "seat 2".
+- `router.ts` compares **path + query** in `navigate()`. Comparing the
+  path alone was fine while no route had a query; now two replays of the
+  same line with different rosters would look identical and the second
+  navigation would be dropped. `useRoute()` returns the raw `search`
+  string (not a `URLSearchParams`) so the `useSyncExternalStore` snapshot
+  stays referentially stable.
 - Social unfurls: `index.html` carries OG/Twitter meta and
   `public/og.png` (1200x630, regenerate from the logo art if the identity
   changes); `App.tsx` sets per-route `document.title`.
@@ -110,7 +124,13 @@ Run from inside `web/`:
   time by `--env 'TTT_*'`, so it must stay a bare `process.env.TTT_VERSION`
   reference; local builds have no tag and read `dev`. The server reports
   the same value at `/health`, so "what is live?" is answerable from either
-  the page or a curl.
+  the page or a curl. The read is wrapped in a `try`/`catch` and that is
+  load-bearing: `bun run dev` does not pass `--env`, so nothing rewrites
+  the reference, and a browser has no `process` - the bare read reached
+  runtime and threw, taking the whole dev app down with a red overlay
+  (shipped broken, caught 2026-07-24). A `typeof process` guard is the
+  wrong fix: after substitution there is no `process` left to test, so
+  every production build would report `dev`.
 - The HTTP API base (`getServerHttpBase` in `src/state/socket.ts`) is the
   socket URL's **origin**, not the socket URL itself: the same-origin
   fallback carries a `/ws` path (`wss://host/ws`), and returning that

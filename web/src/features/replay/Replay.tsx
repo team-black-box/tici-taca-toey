@@ -1,10 +1,15 @@
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { decodeTtn, boardAtFrame } from "../../common/ttn";
 import { GAME_SYMBOL } from "../../common/symbol";
+import { describeGoal } from "../../common/rules";
 import { navigate } from "../../common/router";
+import { readRoster } from "../../common/replay";
+import { KindIcon, kindLabel } from "../../common/kind";
 
 // Step through any TTN line. Pure client-side: the URL is the replay.
-const Replay = ({ ttn }: { ttn: string }) => {
+// `search` carries the roster when the link was made from somewhere that
+// knew it - see common/replay.ts.
+const Replay = ({ ttn, search }: { ttn: string; search: string }) => {
   const decoded = useMemo(() => {
     try {
       return decodeTtn(decodeURIComponent(ttn));
@@ -12,6 +17,7 @@ const Replay = ({ ttn }: { ttn: string }) => {
       return null;
     }
   }, [ttn]);
+  const roster = useMemo(() => readRoster(search), [search]);
 
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -74,20 +80,25 @@ const Replay = ({ ttn }: { ttn: string }) => {
             ? `team ${decoded.result.winnerTeam + 1}`
             : GAME_SYMBOL[decoded.result.winnerSeat! % 10].symbol
         } wins${decoded.result.kind === "timeout" ? " on time" : ""}`;
-  const configText = [
-    `${decoded.boardSize}x${decoded.boardSize}`,
-    decoded.winningSequenceCount > 1
-      ? `${decoded.winningSequenceCount}×${decoded.winningSequenceLength} to win`
-      : null,
-    decoded.teamCount > 0 ? `${decoded.teamCount} teams` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  // Who won, per seat: a team result crowns everyone on that team.
+  const isWinner = (seat: number): boolean => {
+    if (decoded.result.kind !== "win" && decoded.result.kind !== "timeout") {
+      return false;
+    }
+    return decoded.result.winnerTeam !== undefined
+      ? sideOf(seat) === decoded.result.winnerTeam
+      : seat === decoded.result.winnerSeat;
+  };
+  const seats = Array.from({ length: decoded.playerCount }, (_, seat) => seat);
+  // Whoever is about to move: replays are watched to see what someone did
+  // next, so the seat on the clock is worth pointing at.
+  const upNext =
+    frame < total ? decoded.moves[frame]?.seat : undefined;
 
   return (
     <div>
       <div className="status-row">
-        <div className="game-name">replay · {configText}</div>
+        <div className="game-name">replay</div>
         <div className="badge badge--done">
           {frame}/{total} · {resultText}
           {thinkTime ? ` · thought ${thinkTime}` : ""}
@@ -95,6 +106,53 @@ const Replay = ({ ttn }: { ttn: string }) => {
         <button className="btn btn--ghost" onClick={() => navigate("/")}>
           &lt; lobby
         </button>
+      </div>
+      {/* The same words the game header used while it was being played. */}
+      <div className="objective">
+        goal:{" "}
+        {describeGoal({
+          boardSize: decoded.boardSize,
+          winningSequenceLength: decoded.winningSequenceLength,
+          winningSequenceCount: decoded.winningSequenceCount,
+          teamCount: decoded.teamCount,
+        })}
+        {decoded.timed ? " · timed" : ""}
+      </div>
+      {/* Who was which symbol. Without the roster in the link this still
+          reads, as "seat 1" and friends. */}
+      <div className="replay-seats">
+        {seats.map((seat) => {
+          const symbol = GAME_SYMBOL[sideOf(seat) % 10];
+          const player = roster[seat];
+          const won = isWinner(seat);
+          return (
+            <div
+              key={seat}
+              className={`replay-seat${won ? " is-winner" : ""}${
+                seat === upNext ? " is-next" : ""
+              }`}
+              title={
+                player
+                  ? `${player.handle} (${kindLabel(player.kind)}) played ${
+                      symbol.symbol
+                    }`
+                  : `seat ${seat + 1} played ${symbol.symbol}`
+              }
+            >
+              <span className={`replay-seat-mark ${symbol.color}`}>
+                {symbol.symbol}
+              </span>
+              <span className="replay-seat-name">
+                {player ? player.handle : `seat ${seat + 1}`}
+                {player ? <KindIcon kind={player.kind} /> : null}
+              </span>
+              {decoded.teamCount > 0 && (
+                <span className="dim">team {sideOf(seat) + 1}</span>
+              )}
+              {won && <span className="replay-seat-won">won</span>}
+            </div>
+          );
+        })}
       </div>
       <div
         className="board"

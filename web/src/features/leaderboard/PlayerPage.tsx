@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getServerHttpBase } from "../../state/socket";
 import { navigate } from "../../common/router";
+import { replayPath } from "../../common/replay";
 import { KindIcon } from "../../common/kind";
 import { decodeTtn } from "../../common/ttn";
 import { ArchivedGameSummary, GameStatus } from "../../common/model";
@@ -115,9 +116,7 @@ const PlayerPage = ({ handle }: { handle: string }) => {
           <div
             key={game.gameId}
             className="tile tile--live"
-            onClick={() =>
-              navigate(`/replay/${encodeURIComponent(game.ttn)}`)
-            }
+            onClick={() => navigate(replayPath(game.ttn, game.players))}
             title="replay this game"
           >
             <div>

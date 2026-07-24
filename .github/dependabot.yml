@@ -1,74 +1,51 @@
-# Dependabot keeps an eye on dependencies. Two deliberate choices keep the
-# noise down: every ecosystem's routine updates are grouped into a single
-# monthly pull request, and major-version bumps are left alone (they tend
-# to be breaking - TypeScript 7, Babel 8 - and are reviewed by hand).
-# Security updates still come through regardless of these rules.
+# Security updates only.
+#
+# `open-pull-requests-limit: 0` switches off *version* updates for an
+# ecosystem - the routine "bump X from 1.2 to 1.3" pull requests - without
+# touching security updates, which Dependabot still opens whenever an
+# advisory affects something we depend on. That is the trade this project
+# wants: the dependency surface is deliberately tiny (the server has zero
+# runtime dependencies, the web app has two), so routine churn costs more
+# attention than it returns, while a real advisory should still shout.
+#
+# The ecosystems stay listed so Dependabot keeps scanning each manifest.
+# To bring routine updates back for one, raise its limit.
 version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/web"
     schedule:
       interval: "monthly"
-    groups:
-      web:
-        patterns: ["*"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 0
 
   - package-ecosystem: "npm"
     directory: "/server"
     schedule:
       interval: "monthly"
-    groups:
-      server:
-        patterns: ["*"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 0
 
   - package-ecosystem: "npm"
     directory: "/sdk"
     schedule:
       interval: "monthly"
-    groups:
-      sdk:
-        patterns: ["*"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 0
 
   - package-ecosystem: "npm"
     directory: "/mobile"
     schedule:
       interval: "monthly"
-    groups:
-      mobile:
-        patterns: ["*"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 0
 
-  # iOS build tooling (CocoaPods / Fastlane). Not shipped in the app, but
-  # security advisories here should still get a PR.
+  # iOS build tooling (CocoaPods / Fastlane) - not shipped in the app, but
+  # advisories here should still surface.
   - package-ecosystem: "bundler"
     directory: "/mobile"
     schedule:
       interval: "monthly"
-    groups:
-      mobile-ruby:
-        patterns: ["*"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 0
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
-    groups:
-      actions:
-        patterns: ["*"]
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 0
