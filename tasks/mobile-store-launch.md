@@ -288,3 +288,13 @@ simulator or emulator.
   Remaining, all yours: B4 (Android release keystore - also unblocks
   assetlinks.json), B5 (iOS Distribution signing), store listings and
   submission. Optional: the timed-game increment picker.
+- 2026-08-07 20:43 IST - **v1.11.0 shipped and live.** This was the prerequisite for the
+  mobile apps: they point at production, and a server without minting
+  would have handed every phone a fresh identity on each connect.
+  Verified against production, not just locally - a keyless client was
+  minted a real UUID, reconnected as the same player, and was not sent
+  the secret twice; the AASA file now returns application/json with the
+  right appIDs where it returned SPA HTML this morning; privacy.html
+  serves the corrected key wording; and the leaderboard, home, and deep
+  links are unaffected. assetlinks.json still returns the SPA fallback,
+  as expected - it is the one thing waiting on the release keystore.
