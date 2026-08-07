@@ -143,19 +143,78 @@ const LobbyScreen = () => {
         </View>
       )}
 
-      <Modal visible={helpOpen} transparent animationType="fade">
+      {/* onRequestClose is what wires up Android's back gesture. Without
+          it the modal simply ignores back, which on Android reads as the
+          app being stuck - there is no other way out of a full-screen
+          overlay there, and it is the first thing anyone tries. iOS has
+          no back gesture for this, so the CLOSE button stays. */}
+      <Modal
+        visible={helpOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setHelpOpen(false)}
+      >
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", padding: 20 }}>
+          {/* Scrolls, because this is the same material the web help
+              covers and it does not fit on a phone otherwise - and the
+              phone is where a new player most needs it. */}
+          <ScrollView
+            style={{ maxHeight: "88%" }}
+            contentContainerStyle={{ paddingBottom: 4 }}
+          >
           <View style={[ui.panel, { borderColor: C.accent }]}>
             <Text style={ui.panelTitle}>{"> how to play"}</Text>
             <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
-              win by making a line - marks in a row across, down, or
-              diagonally. "in a row" sets how long a line must be (3 is
-              classic); "lines" sets how many you need (usually 1). the game
-              spells the goal out under its name. + robot summons an
-              opponent; claim a handle (type it, hit return) for the
-              leaderboard; finished games replay from their notation. gg
-              forfeits.
+              tic-tac-toe with the dials exposed. take turns placing your
+              mark; win by making a line - marks in a row across, down, or
+              diagonally - before anyone else.
             </Text>
+            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
+              two settings decide what winning means, and the game always
+              spells the goal out under its name:
+            </Text>
+            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 4 }]}>
+              <Text style={{ color: C.accent }}>in a row</Text> - how long a
+              line has to be. 3 is classic; on a big board try 4 or 5.
+            </Text>
+            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
+              <Text style={{ color: C.accent }}>lines</Text> - how many
+              separate lines you need. usually 1. set it higher and the game
+              runs until someone completes that many (lines may cross, like
+              a crossword).
+            </Text>
+            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
+              boards go 2-12, players 2-10. in a team game your teammates'
+              marks count toward the same lines. timed games run chess
+              clocks: run out and you lose. gg forfeits.
+            </Text>
+
+            <Text style={ui.panelTitle}>{"> who you play"}</Text>
+            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
+              play a robot now summons an opponent: rando plays chaos,
+              greedo blocks and pounces, minnie-max never loses a 3x3.
+              invite humans with the share link. watch anything live from
+              the watch tab. play as many boards at once as you dare.
+            </Text>
+
+            <Text style={ui.panelTitle}>{"> cursors"}</Text>
+            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
+              while a game is live you can see where the others are
+              thinking, as a dim ghost of their mark. teammates and
+              spectators always see them; opponents only if the host turned
+              "show cursors to everyone" on at the start, which the game
+              header then says. a hover you do not mean is a perfectly good
+              bluff. your phone shows everyone else's but sends none of its
+              own - a finger has no hover.
+            </Text>
+
+            <Text style={ui.panelTitle}>{"> your identity"}</Text>
+            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
+              claim a handle (type it top-right, hit return) - claimed
+              handles are unique and put you on the leaderboard. every
+              finished game replays from its notation line, move by move.
+            </Text>
+
             <Text style={ui.panelTitle}>{"> sync devices"}</Text>
             <Btn
               title="SHARE MY SYNC CODE"
@@ -187,6 +246,7 @@ const LobbyScreen = () => {
             )}
             <Btn title="CLOSE" ghost onPress={() => setHelpOpen(false)} />
           </View>
+          </ScrollView>
         </View>
       </Modal>
 

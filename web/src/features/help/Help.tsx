@@ -80,6 +80,15 @@ const Help = () => {
               you dare - tiles blink when it is your move.
             </p>
             <p>
+              while a game is live you can see where the others are
+              thinking, as a dim ghost of their mark hovering over the cell
+              they are considering. teammates and spectators always see
+              them; opponents only if the host ticked{" "}
+              <b>show cursors to everyone</b> when starting the game, which
+              the game header then says. a hover you do not mean is a
+              perfectly good bluff.
+            </p>
+            <p>
               claim your handle by typing it top-right and pressing enter -
               claimed handles are unique and put you on the leaderboard.
               finished games replay from their notation line - press replay
