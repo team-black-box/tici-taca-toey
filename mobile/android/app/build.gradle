@@ -82,8 +82,8 @@ android {
         applicationId "com.ticitacatoey"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.12.1"
+        versionCode 5
+        versionName "1.12.2"
     }
     signingConfigs {
         debug {

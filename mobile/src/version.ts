@@ -13,7 +13,7 @@
 //
 // `bun run check:versions` fails when the three disagree, so the drift
 // that would otherwise ship is caught before it does.
-export const APP_VERSION = "1.12.1";
+export const APP_VERSION = "1.12.2";
 
 // Where the legal pages live. Both stores require a reachable privacy
 // policy, and these are the same documents the web footer links to.
