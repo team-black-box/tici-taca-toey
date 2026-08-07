@@ -33,7 +33,7 @@ Verified 2026-08-07: production is live on v1.10.0, `/privacy.html` and
 
 ## Blockers
 
-### B1. The playerKey is not random (security)
+### B1. The playerKey is not random (security) - DONE 2026-08-07
 
 `mobile/src/state.ts:383` builds the only credential in the system from
 `Math.random()`:
@@ -63,7 +63,7 @@ The alternative, `react-native-get-random-values`, is one small
 dependency but needs an explicit exception to the approved-deps rule,
 and only fixes the phone.
 
-### B2. Nothing legal in the app
+### B2. Nothing legal in the app - DONE 2026-08-07
 
 Both stores require a privacy policy, and Apple expects it reachable
 from inside the app. Mobile currently has **no** privacy link, no terms
@@ -72,7 +72,7 @@ link, and no version string anywhere. The web footer has all three.
 We already serve `/privacy.html` and `/terms.html`, so this is a link,
 not new content.
 
-### B3. Versions are stuck at 1.0
+### B3. Versions are stuck at 1.0 - DONE 2026-08-07
 
 `versionCode 1` / `versionName "1.0"` (Android) and `MARKETING_VERSION
 1.0` / `CURRENT_PROJECT_VERSION 1` (iOS), while the project is on
@@ -237,3 +237,15 @@ simulator or emulator.
   iOS toolchain unable to build (Xcode/runtime mismatch) with a
   no-sudo workaround for development, and confirmed both deep-link
   association files are serving SPA HTML.
+- 2026-08-07 14:2x IST - B1 done and verified against a live server, not
+  just in unit tests: a keyless client got a real UUID, claimed a handle,
+  reconnected as the same playerId with the handle intact, and the secret
+  was not echoed a second time; the hash landed in sqlite and the
+  identity still resolved after killing and restarting the server. 8 new
+  tests (server 149 total). B2 + B3 done: `mobile/src/version.ts` plus a
+  lobby footer linking privacy and terms and showing the version, and all
+  three version locations bumped to 1.11.0. Added
+  `bun run check:versions`, wired into mobile's `typecheck`, because the
+  version now lives in three files that cannot import each other -
+  verified it fails on drift. Full matrix green (server 149, web, sdk,
+  mobile typecheck + both bundles).

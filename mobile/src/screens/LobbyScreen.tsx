@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Modal, ScrollView, Share, Switch, Text, TextInput, View, Pressable } from "react-native";
+import { Linking, Modal, ScrollView, Share, Switch, Text, TextInput, View, Pressable } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,6 +8,7 @@ import { Avatar, Badge, Btn, Field, styles as ui } from "../ui";
 import { decodeTtn } from "../ttn";
 import { describeGoal } from "../rules";
 import { GameStatus } from "../model";
+import { APP_VERSION, PRIVACY_URL, TERMS_URL } from "../version";
 import {
   useAppSelector,
   updateCurrentPlayerName,
@@ -448,6 +449,37 @@ const LobbyScreen = () => {
             }}
           />
         )}
+      </View>
+
+      {/* The web's footer, in the one place a phone has room for it.
+          Both stores require a reachable privacy policy, and the version
+          is what makes a support conversation possible. */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "center",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 6,
+          marginTop: 14,
+          marginBottom: 4,
+        }}
+      >
+        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>
+          made with ♥ in Bengaluru
+        </Text>
+        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>·</Text>
+        <Pressable onPress={() => Linking.openURL(PRIVACY_URL)}>
+          <Text style={[MONO, { color: C.accent, fontSize: 10 }]}>privacy</Text>
+        </Pressable>
+        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>·</Text>
+        <Pressable onPress={() => Linking.openURL(TERMS_URL)}>
+          <Text style={[MONO, { color: C.accent, fontSize: 10 }]}>terms</Text>
+        </Pressable>
+        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>·</Text>
+        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>
+          v{APP_VERSION}
+        </Text>
       </View>
     </ScrollView>
   );

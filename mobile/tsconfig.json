@@ -10,6 +10,9 @@
   "exclude": [
     "**/node_modules",
     "**/Pods",
-    "build"
+    "build",
+    // Build tooling runs under Bun, not React Native, and uses Bun and
+    // node: APIs this config deliberately does not provide.
+    "scripts"
   ]
 }
