@@ -84,7 +84,12 @@ const LobbyScreen = () => {
   return (
     <ScrollView
       style={{ backgroundColor: C.bg }}
-      contentContainerStyle={{ padding: 14, paddingTop: insets.top + 8, paddingBottom: 120 }}
+      // The floating tab bar sits 24pt off the bottom and is not part of
+      // the layout, so the scroll content has to leave room for it by
+      // hand. 120 cleared the last panel but not the footer added below
+      // it - the legal links ended up underneath the pills, which is
+      // exactly the thing an app reviewer taps first.
+      contentContainerStyle={{ padding: 14, paddingTop: insets.top + 8, paddingBottom: 190 }}
     >
       <View
         style={{

@@ -18,9 +18,25 @@ const CACHE_IMMUTABLE = "public, max-age=31536000, immutable";
 const CACHE_HOURLY = "public, max-age=3600";
 const CACHE_REVALIDATE = "no-cache";
 
-const fileResponse = (path: string, cacheControl: string): Response =>
+// Deep-link association files. Apple fetches
+// /.well-known/apple-app-site-association with **no file extension**, and
+// requires application/json - but the extension is exactly what would
+// otherwise imply the type, so it has to be stated. Without this the file
+// goes out as octet-stream and iOS ignores it, which looks identical to
+// not having the file at all. Serving the whole directory as JSON is
+// correct for assetlinks.json too.
+const WELL_KNOWN = "/.well-known/";
+
+const fileResponse = (
+  path: string,
+  cacheControl: string,
+  contentType?: string
+): Response =>
   new Response(Bun.file(path), {
-    headers: { "Cache-Control": cacheControl },
+    headers: {
+      "Cache-Control": cacheControl,
+      ...(contentType === undefined ? {} : { "Content-Type": contentType }),
+    },
   });
 
 const isFile = (path: string): boolean => {
@@ -166,7 +182,8 @@ export const createStaticHandler = (
       if (inRoot && isFile(target)) {
         return fileResponse(
           target,
-          HASHED_ASSET.test(target) ? CACHE_IMMUTABLE : CACHE_HOURLY
+          HASHED_ASSET.test(target) ? CACHE_IMMUTABLE : CACHE_HOURLY,
+          decoded.startsWith(WELL_KNOWN) ? "application/json" : undefined
         );
       }
       // SPA fallback: serve index.html with route-specific preview meta.

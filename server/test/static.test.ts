@@ -104,4 +104,42 @@ describe("same-origin static serving", () => {
     expect(missing("GET", "/")).toBeUndefined();
     expect(missing("GET", "/play/x")).toBeUndefined();
   });
+
+  // Deep-link association files. Getting these wrong fails silently -
+  // iOS and Android simply do not open the app, which is
+  // indistinguishable from not having shipped the files at all. Both of
+  // these were serving the SPA's HTML before they existed on disk.
+  test("apple-app-site-association is served as JSON despite having no extension", async () => {
+    const response = serve("GET", "/.well-known/apple-app-site-association");
+    expect(response).toBeDefined();
+    // Apple requires application/json, and the missing file extension is
+    // exactly what would otherwise leave this as octet-stream.
+    expect(response!.headers.get("Content-Type")).toBe("application/json");
+    const body = JSON.parse(await bodyOf(response));
+    expect(body.applinks.details[0].appIDs).toContain(
+      "NZ2N94X98Y.com.ticitacatoey"
+    );
+  });
+
+  test("assetlinks.json is served as JSON", async () => {
+    const response = serve("GET", "/.well-known/assetlinks.json");
+    expect(response).toBeDefined();
+    expect(response!.headers.get("Content-Type")).toBe("application/json");
+  });
+
+  test("association files claim only paths the app can route", async () => {
+    const response = serve("GET", "/.well-known/apple-app-site-association");
+    const claimed: string[] = JSON.parse(
+      await bodyOf(response)
+    ).applinks.details[0].components.map(
+      (component: Record<string, string>) => component["/"]
+    );
+    // The app's LINK_PATTERN handles play and spectate, nothing else.
+    expect(claimed).toEqual(["/play/*", "/spectate/*"]);
+    // The legal pages must stay with the browser: the mobile footer opens
+    // them with Linking.openURL, so claiming them would bounce the user
+    // back into the app instead of showing the page.
+    expect(claimed.some((path) => path.includes("privacy"))).toBe(false);
+    expect(claimed.some((path) => path.includes("terms"))).toBe(false);
+  });
 });

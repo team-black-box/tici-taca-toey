@@ -30,5 +30,21 @@ target 'TiciTacaToey' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Drag every pod up to the app's own minimum. Some dependencies still
+    # declare an iOS 13 deployment target (AsyncStorage's resources
+    # bundle is the one that bit us), and Xcode 26+ refuses to build
+    # anything below 15.0 - so the build fails on a number that has
+    # nothing to do with us and that we never chose. Setting it here
+    # rather than editing Pods/ means it survives the next
+    # `pod install`, which regenerates that directory wholesale.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |build_configuration|
+        current = build_configuration.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if current.nil? || Gem::Version.new(current) < Gem::Version.new(min_ios_version_supported)
+          build_configuration.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = min_ios_version_supported
+        end
+      end
+    end
   end
 end

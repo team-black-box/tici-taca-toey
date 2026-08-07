@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["NZ2N94X98Y.com.ticitacatoey"],
+        "components": [
+          { "/": "/play/*", "comment": "take a seat in a game" },
+          { "/": "/spectate/*", "comment": "watch a game" }
+        ]
+      }
+    ]
+  }
+}
