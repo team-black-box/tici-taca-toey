@@ -1215,3 +1215,8 @@ select:focus-visible {
   padding: 0;
   cursor: pointer;
 }
+
+/* A note under a panel's action, for the aside that would be clutter as
+   a paragraph but is worth saying once. */
+.panel-note { margin: 10px 0 0; line-height: 1.5; }
+.panel-note a { color: var(--accent); }

@@ -3,7 +3,7 @@ import { decodeTtn, boardAtFrame } from "../../common/ttn";
 import { GAME_SYMBOL } from "../../common/symbol";
 import { describeGoal } from "../../common/rules";
 import { navigate } from "../../common/router";
-import { readRoster } from "../../common/replay";
+import { readRoster, readStartFrame } from "../../common/replay";
 import { KindIcon, kindLabel } from "../../common/kind";
 import { analyseGame, cellName } from "../../common/analysis";
 
@@ -26,8 +26,12 @@ const Replay = ({ ttn, search }: { ttn: string; search: string }) => {
     [decoded]
   );
 
-  const [frame, setFrame] = useState(0);
-  const [playing, setPlaying] = useState(true);
+  // A link can ask to open on a particular move ("see what decided it").
+  // When it does, start there and stay put - autoplaying away from the
+  // move someone was sent to look at defeats the point.
+  const startFrame = useMemo(() => readStartFrame(search), [search]);
+  const [frame, setFrame] = useState(startFrame ?? 0);
+  const [playing, setPlaying] = useState(startFrame === undefined);
   const total = decoded?.moves.length ?? 0;
 
   useEffect(() => {

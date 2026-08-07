@@ -77,6 +77,31 @@ const Leaderboard = () => {
       >
         full standings &gt;
       </button>
+      {/* The one thing this project has that nothing else does, said on
+          the page people actually land on. It was previously only
+          visible if you went to the full standings *and* switched to the
+          machines view - two steps past anybody's first visit. */}
+      {rows.some((row) => row.kind !== PlayerKind.HUMAN) && (
+        <p className="dim panel-note">
+          machines rank here too.{" "}
+          <a
+            href="https://github.com/team-black-box/tici-taca-toey/tree/main/sdk"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            build a robot
+          </a>{" "}
+          in ten lines, or bring an agent over{" "}
+          <a
+            href="https://github.com/team-black-box/tici-taca-toey/tree/main/mcp"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            mcp
+          </a>
+          .
+        </p>
+      )}
     </div>
   );
 };

@@ -44,6 +44,7 @@ import {
   GameStatus,
 } from "../model";
 import { decodeTtn, boardAtFrame } from "../ttn";
+import { analyseGame, cellName } from "../analysis";
 import type { RootStackParamList } from "../navigation";
 
 // Which cell just changed, so exactly one lands with a strike. Diffing
@@ -166,6 +167,48 @@ const CursorGhosts = ({
           </View>
         ))}
     </View>
+  );
+};
+
+// What decided a finished game, said where you already are. Mirrors
+// web/src/features/game/Verdict.tsx; the analysis itself is shared.
+const Verdict = ({
+  game,
+  players,
+}: {
+  game: Game;
+  players: Record<string, { name: string; kind: string }>;
+}) => {
+  const analysis = useMemo(() => {
+    if (!game.notation) {
+      return null;
+    }
+    try {
+      return analyseGame(decodeTtn(game.notation));
+    } catch {
+      // An unreadable line is not worth breaking the endgame screen for.
+      return null;
+    }
+  }, [game.notation]);
+
+  const turningPoint = analysis?.turningPoint;
+  if (!turningPoint) {
+    return null;
+  }
+  const cell = turningPoint.missedWin ?? turningPoint.missedBlock!;
+  const who =
+    players[game.players[turningPoint.seat]]?.name ??
+    `seat ${turningPoint.seat + 1}`;
+  return (
+    <Text style={[MONO, { color: C.warn, fontSize: 12, marginTop: 8 }]}>
+      {turningPoint.missedWin
+        ? `> ${who} could have won at ${cellName(cell.x, cell.y)} on move ${
+            turningPoint.index + 1
+          }.`
+        : `> ${who} left ${cellName(cell.x, cell.y)} open on move ${
+            turningPoint.index + 1
+          } - that is where it turned.`}
+    </Text>
   );
 };
 
@@ -489,6 +532,12 @@ const GameScreen = () => {
         )}
 
         <Board game={game} you={you} />
+
+      {/* What decided it, on the screen you are already looking at - the
+          analysis was otherwise only reachable by knowing the replay
+          viewer existed, and the moment anyone wants to hear "here is
+          where you lost it" is the moment the board stops. */}
+      <Verdict game={game} players={players} />
 
       {game.notation &&
         [

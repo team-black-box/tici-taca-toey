@@ -19,6 +19,10 @@ export interface ReplaySeat {
 
 const HANDLE_PARAM = "p";
 const KIND_PARAM = "k";
+// Open the replay paused on a particular move rather than at the start.
+// "see what decided it" has to land on the move it is talking about;
+// making someone press play and watch for it is not showing them.
+const AT_PARAM = "at";
 
 // The URL is untrusted input like any other: cap what a hand-typed link can
 // put on the page. React escapes the text, so this is about the layout
@@ -30,11 +34,16 @@ const KINDS: string[] = Object.values(PlayerKind);
 
 export const replayPath = (
   ttn: string,
-  roster?: ReadonlyArray<ReplaySeat>
+  roster?: ReadonlyArray<ReplaySeat>,
+  atFrame?: number
 ): string => {
   const path = `/replay/${encodeURIComponent(ttn)}`;
+  const at =
+    atFrame !== undefined && Number.isInteger(atFrame) && atFrame >= 0
+      ? `${AT_PARAM}=${atFrame}`
+      : "";
   if (!roster || roster.length === 0) {
-    return path;
+    return at ? `${path}?${at}` : path;
   }
   // Index by seat rather than by array order: the seat is the join key
   // between the roster and the notation, and a gap must stay a gap.
@@ -56,7 +65,21 @@ export const replayPath = (
     params.append(HANDLE_PARAM, player?.handle ?? "");
     params.append(KIND_PARAM, player?.kind ?? "");
   });
+  if (at) {
+    params.append(AT_PARAM, String(atFrame));
+  }
   return `${path}?${params.toString()}`;
+};
+
+// Which move to open on, if the link asked for one. Undefined means
+// "start at the beginning and play", which is the normal case.
+export const readStartFrame = (search: string): number | undefined => {
+  const raw = new URLSearchParams(search).get(AT_PARAM);
+  if (raw === null) {
+    return undefined;
+  }
+  const frame = Number(raw);
+  return Number.isInteger(frame) && frame >= 0 ? frame : undefined;
 };
 
 // Read the roster back out of a query string. Seats we were not told about

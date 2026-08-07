@@ -1,6 +1,7 @@
 import Status from "./status/Status";
 import Board from "./board/Board";
 import Players from "./players/Players";
+import Verdict from "./Verdict";
 import { useAppSelector } from "../../state/store";
 import { getActiveGameId } from "../../state/currentPlayer";
 import { startRobotGame } from "../../state/actions";
@@ -45,6 +46,9 @@ const Game = () => {
     <div>
       <Status />
       <Board />
+      {/* Only on a finished game, and only when there is something to
+          say - see Verdict. */}
+      <Verdict />
       <Players />
     </div>
   ) : (

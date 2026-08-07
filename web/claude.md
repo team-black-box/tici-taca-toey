@@ -141,6 +141,16 @@ Run from inside `web/`:
   it was actually cashed in, otherwise every game fills with scolding
   about threats nobody was going to play. Pure and client-side, so it
   works on every game already in the corpus.
+- Discoverability is part of a feature, not a follow-up. The daily
+  first shipped reachable only from the footer, between privacy and
+  terms, and had to be moved to the welcome panel; the analysis had the
+  same shape of problem, visible only to someone who already knew the
+  replay viewer existed. So: `Verdict.tsx` says what decided a game on
+  the finished game itself, and its button opens the replay **at that
+  move** (`replayPath(ttn, roster, atFrame)` -> `&at=N`, which
+  `Replay.tsx` reads as its initial frame and does not autoplay away
+  from). The sidebar leaderboard carries the one line about robots and
+  agents, since the machines view is two steps past a first visit.
 - The daily position (`shared/daily.ts`, route `/daily`): one puzzle a
   day, generated deterministically from the UTC date so every device
   derives the same board with nothing fetched and no puzzle list stored.

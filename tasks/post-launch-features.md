@@ -107,3 +107,13 @@ replay screens remain.
   (RFC 8291/8292) server-side, and FCM/APNs on mobile - a service
   dependency and a pile of hand-rolled crypto. Recorded in the task
   rather than half-built.
+- 2026-08-08 01:24 IST - Discoverability pass, prompted by the daily having shipped in
+  the footer. The same failure applied to two of the other four: the
+  analysis was reachable only from inside the replay viewer, and the
+  humans/machines split only from the full standings. Both now surface
+  where the moment actually happens - a finished game states what
+  decided it and offers "see it", which opens the replay paused **on
+  that move** (new `at=` link param), and the sidebar leaderboard
+  carries the robot/agent line. Verified by playing: the verdict read
+  "rando left C1 open on move 4 - that is where it turned", and the
+  button landed on frame 4/5 paused with the square flagged.
