@@ -5,6 +5,7 @@ import { useAppSelector } from "../../state/store";
 import { getActiveGameId } from "../../state/currentPlayer";
 import { startRobotGame } from "../../state/actions";
 import { RobotIcon } from "../../common/icons";
+import { navigate } from "../../common/router";
 
 // First run: teach the game and get a visitor into a match in one click.
 const Welcome = () => (
@@ -18,14 +19,23 @@ const Welcome = () => (
       robots are standing by. humans join by link. spectators lurk. every
       finished game becomes a replayable one-liner.
     </p>
+    {/* Two ways to start that need nobody else, side by side. The daily
+        was originally only reachable from the footer, filed between
+        privacy and terms - which is precisely where you do not look for
+        something to play, and it is the one thing here that works with
+        an empty lobby. */}
     <div className="welcome-actions">
       <button className="btn" onClick={startRobotGame}>
         play a robot now <RobotIcon />
       </button>
-      <span className="dim">
-        or start a custom game on the left · press ? for help
-      </span>
+      <button className="btn" onClick={() => navigate("/daily")}>
+        today's puzzle
+      </button>
     </div>
+    <p className="dim">
+      one position a day, the same for everyone - or start a custom game
+      on the left · press ? for help
+    </p>
   </div>
 );
 

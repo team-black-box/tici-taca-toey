@@ -134,12 +134,20 @@ const LobbyScreen = () => {
             10 players, line length you choose, chess clocks optional.
             robots are standing by.
           </Text>
-          <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
+          {/* Both ways to start that need nobody else, together. */}
+          <View style={{ flexDirection: "row", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <Btn title="PLAY A ROBOT NOW" onPress={startRobotGame} />
+            <Btn
+              title="TODAY'S PUZZLE"
+              onPress={() => navigation.navigate("Daily")}
+            />
             <Pressable onPress={() => setHelpOpen(true)}>
               <Text style={[MONO, { color: C.dim, fontSize: 12 }]}>? help</Text>
             </Pressable>
           </View>
+          <Text style={[MONO, { color: C.dim, fontSize: 10, marginTop: 6 }]}>
+            one position a day, the same for everyone
+          </Text>
         </View>
       )}
 
@@ -319,7 +327,11 @@ const LobbyScreen = () => {
         </View>
       )}
 
-      <View style={{ flexDirection: "row", gap: 10, marginBottom: 14 }}>
+      {/* Always reachable. The welcome panel's copy of this button is the
+          prominent one, but it only renders while you have no games -
+          without this row the daily would vanish the moment you started
+          playing, which is exactly when you would come back for it. */}
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <Btn
           title="LEADERBOARD"
           ghost
