@@ -96,7 +96,7 @@ hold, or commit it. Create it, store it somewhere safe and backed up
 the store needs a Distribution certificate and provisioning profile -
 done in Xcode against your Apple Developer account. Also yours.
 
-### B6. The iOS toolchain on this Mac cannot build at all right now
+### B6. The iOS toolchain on this Mac cannot build at all right now - RESOLVED (see checkpoint)
 
 Not a code problem - I proved the source is fine by other means, but
 every `xcodebuild` invocation fails with *"Found no destinations for the
@@ -119,7 +119,7 @@ Two paths, and they are for different purposes:
   via **Xcode > Settings > Components**. Multi-GB download, your
   machine, your call on timing. Do this early; it is the long pole.
 
-### B7. The app has never run on a device or emulator - iOS DONE
+### B7. The app has never run on a device or emulator - DONE (both)
 
 `TODO.md` has carried "Android emulator/device pass" as pending since
 before launch. We have shipped ten server releases without once seeing
@@ -149,7 +149,7 @@ bundle id, so it can be done now. Both must be served with real JSON
 content types - `static.ts` will need an explicit case, since the SPA
 fallback currently swallows them.
 
-### I2. Parity polish
+### I2. Parity polish - help DONE
 
 - **Help**: web's is 127 lines and was deliberately expanded; mobile's
   is one paragraph in a modal. First-run experience on a phone is the
@@ -266,3 +266,25 @@ simulator or emulator.
   yours), B6 (Xcode Components download, yours - the long pole for
   submitting, since a beta-built archive is rejected), the Android
   emulator half of B7, and I2 help parity.
+- 2026-08-07 19:19 IST - Android pass done. Built, installed, and played a full game
+  on a Pixel 9 Pro emulator (API 35): minted identity with no key of its
+  own (payload-igj), robot game, win with the line highlighted, replay
+  stepper, history row. Two real finds. The help modal ignored Android's
+  back gesture - RN Modal needs onRequestClose, and without it a
+  full-screen overlay has no exit on Android; fixed and verified both
+  ways. And the privacy policy had gone stale the moment the server
+  started minting keys: it claimed the phone generates its own. Rewritten
+  to describe the actual flow and re-dated, since it is a document two
+  app reviews will read. Help now matches the web's depth in five
+  scrolling sections, and both platforms' help finally explain cursors
+  (missing since v1.10.0). Also confirmed the privacy link opens Chrome
+  rather than bouncing back into the app - the thing the AASA path list
+  was written to avoid.
+
+  B6 resolved externally: publishing will happen from a second MacBook
+  that has the released Xcode 26.6, so the Components download on this
+  machine is no longer on the critical path.
+
+  Remaining, all yours: B4 (Android release keystore - also unblocks
+  assetlinks.json), B5 (iOS Distribution signing), store listings and
+  submission. Optional: the timed-game increment picker.
