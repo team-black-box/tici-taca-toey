@@ -30,6 +30,20 @@ exquisite taste in design.
 
 ## Completed
 
+- Five features after the launch (2026-08-07): **rematch** (a finished
+  game was a dead end; same board, same rules, same robots by name),
+  **post-game analysis** (a replay now names the move that decided it -
+  a win that was there, a block that was not made - from data the
+  notation already kept), **turn alerts** (favicon and title carry the
+  count; a system notification when the tab is hidden - not when the
+  browser is closed, which needs Web Push and is still an open call),
+  **humans/machines on the leaderboard** with a route into the SDK and
+  MCP, and a **daily position** - one puzzle a day, generated from the
+  date so every device derives the same board, needing no opponent and
+  no lobby. Also fixed: per-player neon had silently died on every web
+  board, `.cell`'s colour reset having outranked `.sym-*`.
+  ([task file](./tasks/post-launch-features.md))
+
 - Live cursors (2026-07-24): the other people in a game now appear as dim
   ghosts of their own mark over the cell they are considering, so a board
   feels inhabited between moves. Teammates and spectators always see

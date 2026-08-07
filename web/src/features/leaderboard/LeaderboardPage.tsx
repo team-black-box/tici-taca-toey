@@ -44,6 +44,7 @@ const LeaderboardPage = () => {
   const [loaded, setLoaded] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("rating");
   const [ascending, setAscending] = useState(false);
+  const [who, setWho] = useState<"all" | "humans" | "machines">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -74,8 +75,24 @@ const LeaderboardPage = () => {
     };
   }, [pool]);
 
+  // Humans and machines share one board on purpose - a robot beating you
+  // should sting - but "how am I doing against people" and "how good are
+  // the machines" are different questions, and mixing them answers
+  // neither. Filtering is a view, never a separate rating.
+  const visible = useMemo(
+    () =>
+      rows.filter((row) =>
+        who === "all"
+          ? true
+          : who === "humans"
+          ? row.kind === PlayerKind.HUMAN
+          : row.kind !== PlayerKind.HUMAN
+      ),
+    [rows, who]
+  );
+
   const sorted = useMemo(() => {
-    const copy = [...rows];
+    const copy = [...visible];
     copy.sort((a, b) => {
       const left = a[sortKey];
       const right = b[sortKey];
@@ -86,7 +103,7 @@ const LeaderboardPage = () => {
       return ascending ? compared : -compared;
     });
     return copy;
-  }, [rows, sortKey, ascending]);
+  }, [visible, sortKey, ascending]);
 
   const sortBy = (key: SortKey) => {
     if (key === sortKey) {
@@ -115,10 +132,44 @@ const LeaderboardPage = () => {
             ))}
           </select>
         )}
+        <span className="seg">
+          {(["all", "humans", "machines"] as const).map((option) => (
+            <button
+              key={option}
+              className={`btn btn--ghost ${who === option ? "is-on" : ""}`}
+              onClick={() => setWho(option)}
+            >
+              {option}
+            </button>
+          ))}
+        </span>
         <button className="btn btn--ghost" onClick={() => navigate("/")}>
           &lt; lobby
         </button>
       </div>
+
+      {who === "machines" && (
+        <p className="dim">
+          robots play through the{" "}
+          <a
+            href="https://github.com/team-black-box/tici-taca-toey/tree/main/sdk"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            robot sdk
+          </a>{" "}
+          in about ten lines; agents connect over{" "}
+          <a
+            href="https://github.com/team-black-box/tici-taca-toey/tree/main/mcp"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            mcp
+          </a>{" "}
+          with just a url. <b>cloney</b> was trained on the public game
+          corpus - every finished game here feeds it.
+        </p>
+      )}
 
       {pool === "global" && (
         <p className="dim">

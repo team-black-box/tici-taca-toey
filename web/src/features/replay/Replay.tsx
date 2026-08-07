@@ -5,6 +5,7 @@ import { describeGoal } from "../../common/rules";
 import { navigate } from "../../common/router";
 import { readRoster } from "../../common/replay";
 import { KindIcon, kindLabel } from "../../common/kind";
+import { analyseGame, cellName } from "../../common/analysis";
 
 // Step through any TTN line. Pure client-side: the URL is the replay.
 // `search` carries the roster when the link was made from somewhere that
@@ -18,6 +19,12 @@ const Replay = ({ ttn, search }: { ttn: string; search: string }) => {
     }
   }, [ttn]);
   const roster = useMemo(() => readRoster(search), [search]);
+  // What decided this game. Computed once from the line - no server
+  // round trip, and it works on every game ever recorded.
+  const analysis = useMemo(
+    () => (decoded ? analyseGame(decoded) : null),
+    [decoded]
+  );
 
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -90,6 +97,13 @@ const Replay = ({ ttn, search }: { ttn: string; search: string }) => {
       : seat === decoded.result.winnerSeat;
   };
   const seats = Array.from({ length: decoded.playerCount }, (_, seat) => seat);
+  // The note for the move just played, so stepping through the game
+  // narrates itself rather than making you spot it.
+  const note = analysis?.moves.find((move) => move.index === frame - 1);
+  const flagged = note?.missedWin ?? note?.missedBlock;
+  const nameOf = (seat: number) =>
+    roster[seat]?.handle ?? `seat ${seat + 1}`;
+  const turningPoint = analysis?.turningPoint;
   // Whoever is about to move: replays are watched to see what someone did
   // next, so the seat on the clock is worth pointing at.
   const upNext =
@@ -161,16 +175,62 @@ const Replay = ({ ttn, search }: { ttn: string; search: string }) => {
         {positions.flat().map((cell, index) => {
           const seat = cell === "-" ? -1 : Number(cell);
           const symbol = seat >= 0 ? GAME_SYMBOL[sideOf(seat) % 10] : null;
+          const x = Math.floor(index / decoded.boardSize);
+          const y = index % decoded.boardSize;
+          // Mark the square the analysis is pointing at, so the note and
+          // the board are talking about the same thing.
+          const isFlagged =
+            flagged !== undefined && flagged.x === x && flagged.y === y;
           return (
             <div
               key={index}
-              className={`cell ${symbol ? symbol.color : ""}`}
+              className={`cell ${symbol ? symbol.color : ""} ${
+                isFlagged ? "is-flagged" : ""
+              }`}
             >
               {symbol?.symbol ?? ""}
             </div>
           );
         })}
       </div>
+      {/* What just happened, in one line. Only ever states facts the
+          notation supports - a win that was there, a block that was
+          not made - so it stays true without needing an opinion. */}
+      {note && (note.missedWin || note.missedBlock) && (
+        <p className="replay-note">
+          {note.missedWin ? (
+            <>
+              <b>{nameOf(note.seat)}</b> could have won at{" "}
+              <b>{cellName(note.missedWin.x, note.missedWin.y)}</b>.
+            </>
+          ) : (
+            <>
+              <b>{nameOf(note.seat)}</b> left{" "}
+              <b>{cellName(note.missedBlock!.x, note.missedBlock!.y)}</b> open -
+              and that is where the game was lost.
+            </>
+          )}
+          {analysis?.medianClockMs !== undefined &&
+          note.clockMs > 0 &&
+          note.clockMs < analysis.medianClockMs / 2
+            ? ` played in ${(note.clockMs / 1000).toFixed(1)}s, quick for them.`
+            : ""}
+        </p>
+      )}
+      {turningPoint && frame !== turningPoint.index + 1 && (
+        <p className="dim">
+          the game turned on move {turningPoint.index + 1}{" "}
+          <button
+            className="btn btn--ghost btn--tiny"
+            onClick={() => {
+              setPlaying(false);
+              setFrame(turningPoint.index + 1);
+            }}
+          >
+            show me
+          </button>
+        </p>
+      )}
       <div className="replay-controls">
         <button className="btn btn--ghost" onClick={() => { setPlaying(false); setFrame(0); }}>
           |&lt;

@@ -9,6 +9,7 @@ import { Btn, styles as ui } from "../ui";
 import { GlassPill } from "../glass";
 import { decodeTtn, boardAtFrame } from "../ttn";
 import { describeGoal } from "../rules";
+import { analyseGame, cellName } from "../analysis";
 import type { RootStackParamList } from "../navigation";
 
 // Replay any finished game from its TTN line, entirely on-device - the
@@ -27,6 +28,12 @@ const ReplayScreen = () => {
     }
   }, [params.ttn]);
   const [frame, setFrame] = useState(0);
+  // What decided this game, read straight out of the line - no server
+  // round trip, and it works on every game ever recorded.
+  const analysis = useMemo(
+    () => (decoded ? analyseGame(decoded) : null),
+    [decoded]
+  );
 
   if (!decoded) {
     return (
@@ -70,6 +77,12 @@ const ReplayScreen = () => {
   };
   const roster = params.roster ?? [];
   const seats = Array.from({ length: decoded.playerCount }, (_, seat) => seat);
+  // The note for the move just played, so stepping through narrates
+  // itself rather than making you spot it.
+  const note = analysis?.moves.find((move) => move.index === frame - 1);
+  const flagged = note?.missedWin ?? note?.missedBlock;
+  const nameOf = (seat: number) =>
+    roster.find((entry) => entry.seat === seat)?.handle ?? `seat ${seat + 1}`;
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -154,6 +167,12 @@ const ReplayScreen = () => {
                   value === "-"
                     ? -1
                     : sideOfSeat(Number(value), decoded.teamCount);
+                // Mark the square the note is pointing at, so the words
+                // and the board are talking about the same thing.
+                const isFlagged =
+                  flagged !== undefined &&
+                  flagged.x === x &&
+                  flagged.y === y;
                 return (
                   <View
                     key={y}
@@ -163,7 +182,7 @@ const ReplayScreen = () => {
                       alignItems: "center",
                       justifyContent: "center",
                       borderWidth: 1,
-                      borderColor: C.border,
+                      borderColor: isFlagged ? C.warn : C.border,
                       backgroundColor: C.panel,
                     }}
                   >
@@ -185,6 +204,34 @@ const ReplayScreen = () => {
             </View>
           ))}
         </View>
+        {/* Only ever states what the notation supports - a win that was
+            there, a block that was not made. */}
+        {note && (note.missedWin || note.missedBlock) && (
+          <Text style={[MONO, { color: C.warn, fontSize: 11, marginTop: 8 }]}>
+            {note.missedWin
+              ? `> ${nameOf(note.seat)} could have won at ${cellName(
+                  note.missedWin.x,
+                  note.missedWin.y
+                )}.`
+              : `> ${nameOf(note.seat)} left ${cellName(
+                  note.missedBlock!.x,
+                  note.missedBlock!.y
+                )} open - and that is where the game was lost.`}
+          </Text>
+        )}
+        {analysis?.turningPoint &&
+          frame !== analysis.turningPoint.index + 1 && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 }}>
+              <Text style={[MONO, { color: C.dim, fontSize: 11 }]}>
+                the game turned on move {analysis.turningPoint.index + 1}
+              </Text>
+              <Btn
+                title="SHOW ME"
+                ghost
+                onPress={() => setFrame(analysis.turningPoint!.index + 1)}
+              />
+            </View>
+          )}
         <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
           <Btn title="|<" ghost onPress={() => setFrame(0)} />
           <Btn title="<" ghost onPress={() => setFrame(Math.max(0, frame - 1))} />

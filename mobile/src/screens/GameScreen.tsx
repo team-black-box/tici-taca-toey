@@ -35,6 +35,7 @@ import {
   forfeit,
   getShareUrl,
   subscribeToCursors,
+  rematch,
 } from "../state";
 import {
   CursorTuple,
@@ -355,6 +356,14 @@ const GameScreen = () => {
     game.status === GameStatus.WAITING_FOR_PLAYERS &&
     game.players.length < game.playerCount;
   const canForfeit = game.status === GameStatus.GAME_IN_PROGRESS && isPlayer;
+  const canRematch =
+    isPlayer &&
+    [
+      GameStatus.GAME_WON,
+      GameStatus.GAME_ENDS_IN_A_DRAW,
+      GameStatus.GAME_WON_BY_TIMEOUT,
+      GameStatus.GAME_ABANDONED,
+    ].includes(game.status);
   const shareable = [
     GameStatus.WAITING_FOR_PLAYERS,
     GameStatus.GAME_IN_PROGRESS,
@@ -445,6 +454,12 @@ const GameScreen = () => {
             title="TAKE A SEAT"
             onPress={() => joinGame(game.gameId)}
           />
+        )}
+        {/* A finished game used to be a dead end - back out, rebuild the
+            same settings by hand, find the same robot. Offered to
+            whoever played it, the loser most of all. */}
+        {canRematch && (
+          <Btn title="REMATCH ⟳" onPress={() => rematch(game)} />
         )}
         {canForfeit && (
           <Pressable

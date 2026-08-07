@@ -49,6 +49,12 @@ deep links, and store prep.
   second. Hosting a game with cursors public still works from the lobby
   form; the game header badges it. Who sees whom is the server's call,
   see `server/claude.md`.
+- Rematch, post-game analysis, and the daily position mirror the web:
+  `src/analysis.ts` and `src/daily.ts` are shims over `shared/`, so a
+  replay annotates identically on both and the daily board is the same
+  one everywhere on a given date. Turn alerts are web-only - a real
+  notification here needs FCM/APNs, which is a service dependency this
+  app has not taken.
 - Move impact is `src/burst.tsx`: the web draws sparks on a canvas, which
   React Native does not have, and a graphics library is not a dependency
   this app will take. Instead a small fixed pool of `Animated` views run

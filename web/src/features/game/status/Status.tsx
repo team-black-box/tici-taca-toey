@@ -1,10 +1,20 @@
 import { useState } from "react";
-import { GameStatus, Game } from "../../../common/model";
+import {
+  GameStatus,
+  Game,
+  COMPLETED_GAME_STATUS,
+} from "../../../common/model";
 import { useAppSelector } from "../../../state/store";
 import { getLobbyRobots } from "../../../state/lobby";
 import { getActiveGame } from "../../../state/games";
 import { getCurrentPlayerId } from "../../../state/currentPlayer";
-import { requestRobot, openSeats, joinGame, forfeit } from "../../../state/actions";
+import {
+  requestRobot,
+  openSeats,
+  joinGame,
+  forfeit,
+  rematch,
+} from "../../../state/actions";
 import Share from "../../share/Share";
 import { getStatusForViewer } from "../../../common/status";
 import { sequenceCounts, describeGoal } from "../../../common/rules";
@@ -98,6 +108,8 @@ const RobotPicker = ({ game }: { game: Game }) => {
 const Status = () => {
   const game: Game | undefined = useAppSelector(getActiveGame);
   const currentPlayerId = useAppSelector(getCurrentPlayerId);
+  // Needed to tell a robot from a human when offering a rematch.
+  const players = useAppSelector((state) => state.players);
   if (!game) {
     return null;
   }
@@ -111,6 +123,11 @@ const Status = () => {
     game.players.length < game.playerCount;
   const canForfeit =
     game.status === GameStatus.GAME_IN_PROGRESS && isPlayer;
+  // A finished game is where people used to stop, because there was
+  // nothing to press. Offered to anyone who played it - including the
+  // loser, who is the one most likely to want it.
+  const canRematch =
+    isPlayer && COMPLETED_GAME_STATUS.includes(game.status);
   return (
     <>
     <div className="status-row">
@@ -129,6 +146,15 @@ const Status = () => {
           }
         >
           {game.openSeats ? "✓ open to anyone" : "+ open to anyone"}
+        </button>
+      )}
+      {canRematch && (
+        <button
+          className="btn"
+          onClick={() => rematch(game, players, currentPlayerId)}
+          title="same board, same rules, same robots"
+        >
+          rematch ⟳
         </button>
       )}
       {canTakeSeat && (

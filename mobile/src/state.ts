@@ -213,8 +213,12 @@ const expireFeedback = () => {
   }
 };
 
-// One-click robot game: the next START_GAME response requests a robot.
-let robotPending = false;
+// Robots to seat the moment the next START_GAME lands: one entry per
+// robot, naming the one to ask for or "" for whichever is free. A
+// one-click robot game queues a single anonymous entry; a rematch
+// queues the machines from the last game by name. Mirrors
+// web/src/state/store.ts.
+let pendingRobots: string[] = [];
 
 // Ghost purge: playing entries not refreshed shortly after a (re)connect
 // belong to a dead server instance - mark them abandoned, say so.
@@ -297,12 +301,19 @@ const connect = () => {
         playerKey = response.playerKey;
         storage.setString(PLAYER_KEY, playerKey);
       }
-      if (response.type === MessageTypes.START_GAME && robotPending) {
-        robotPending = false;
-        sendToServer({
-          type: MessageTypes.REQUEST_ROBOT,
-          gameId: response.game.gameId,
-        });
+      if (
+        response.type === MessageTypes.START_GAME &&
+        pendingRobots.length > 0
+      ) {
+        const names = pendingRobots;
+        pendingRobots = [];
+        names.forEach((robotName) =>
+          sendToServer({
+            type: MessageTypes.REQUEST_ROBOT,
+            gameId: response.game.gameId,
+            ...(robotName ? { robotName } : {}),
+          })
+        );
       }
       // History changes exactly when a game of mine ends; registration
       // fetches the initial list (empty on a server without a database).
@@ -586,9 +597,33 @@ export const claimHandle = (handle: string) => {
 };
 
 export const startRobotGame = () => {
-  robotPending = true;
+  pendingRobots = [""];
   say("info", "summoning a robot…");
   startGame("You vs The Machine", 3, 2, 3);
+};
+
+// Play that again: same board, same rules, same clocks, and the same
+// machines - any robot or agent that was seated is asked for again by
+// name. Humans cannot be summoned, so for them this opens the same game
+// and leaves you the invite to share. Mirrors web/src/state/actions.ts.
+export const rematch = (game: Game) => {
+  const machines = game.players
+    .filter((playerId) => playerId !== state.currentPlayer.playerId)
+    .map((playerId) => state.players[playerId])
+    .filter((player) => player !== undefined && player.kind !== "human");
+  pendingRobots = machines.map((player) => player.name);
+  startGame(
+    game.name,
+    game.boardSize,
+    game.playerCount,
+    game.winningSequenceLength,
+    game.timed ? game.timePerPlayer : undefined,
+    game.timed ? game.incrementPerPlayer : undefined,
+    game.winningSequenceCount > 1 ? game.winningSequenceCount : undefined,
+    game.teamCount > 0 ? game.teamCount : undefined,
+    game.openSeats,
+    game.showCursors
+  );
 };
 
 export const exportSyncUrl = (): string =>

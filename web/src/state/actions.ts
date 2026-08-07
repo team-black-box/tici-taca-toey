@@ -6,8 +6,16 @@ import {
   SpectateGameMessage,
   MakeMoveMessage,
   RequestRobotMessage,
+  Game,
+  PlayerKind,
+  StaticPlayerStore,
 } from "../common/model";
-import { dispatch, markRobotPending, say } from "./store";
+import {
+  dispatch,
+  markRobotPending,
+  markRobotsPending,
+  say,
+} from "./store";
 import { getPlayerKey } from "./identity";
 
 // actions
@@ -51,6 +59,43 @@ export const startGame = (
     incrementPerPlayer,
   };
   dispatch(startGameAction);
+};
+
+// Play that again. A finished game used to be a dead end - you had to
+// go back to the lobby and rebuild the same configuration by hand,
+// which is the moment most people simply stopped.
+//
+// "The same game" means the same board, the same rules, the same
+// clocks, and the same machines: any robot or agent that was seated is
+// asked for again by name, so a rematch against minnie-max is against
+// minnie-max. Humans cannot be summoned - there is no way to page
+// someone, by design - so for them this opens the same game and hands
+// you the invite to share.
+export const rematch = (
+  game: Game,
+  players: StaticPlayerStore,
+  currentPlayerId: string
+) => {
+  const machines = game.players
+    .filter((playerId) => playerId !== currentPlayerId)
+    .map((playerId) => players[playerId])
+    .filter(
+      (player): player is NonNullable<typeof player> =>
+        player !== undefined && player.kind !== PlayerKind.HUMAN
+    );
+  markRobotsPending(machines.map((player) => player.name));
+  startGame(
+    game.name,
+    game.boardSize,
+    game.playerCount,
+    game.winningSequenceLength,
+    game.timed ? game.timePerPlayer : undefined,
+    game.timed ? game.incrementPerPlayer : undefined,
+    game.winningSequenceCount > 1 ? game.winningSequenceCount : undefined,
+    game.teamCount > 0 ? game.teamCount : undefined,
+    game.openSeats,
+    game.showCursors
+  );
 };
 
 export const listMyGames = () => {

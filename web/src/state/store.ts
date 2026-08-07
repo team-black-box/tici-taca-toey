@@ -83,11 +83,19 @@ const LOCAL_ACTIONS: string[] = [
   MessageTypes.SET_ACTIVE_GAME,
 ];
 
-// One-click robot game: when set, the next START_GAME response immediately
-// requests a robot for that game.
-let robotPending = false;
+// Robots to seat the moment the next START_GAME response lands: one
+// entry per robot, naming the one to ask for, or "" for whichever the
+// scheduler likes. One-click robot games queue a single anonymous
+// entry; a rematch queues the machines that were in the last game, by
+// name, so playing minnie-max again means playing minnie-max.
+let pendingRobots: string[] = [];
+
 export const markRobotPending = () => {
-  robotPending = true;
+  pendingRobots = [""];
+};
+
+export const markRobotsPending = (names: string[]) => {
+  pendingRobots = names;
 };
 
 export const dispatch = (action: Response | Message) => {
@@ -167,12 +175,17 @@ initSocket({
     ) {
       sendToServer({ type: MessageTypes.LIST_MY_GAMES });
     }
-    if (response.type === MessageTypes.START_GAME && robotPending) {
-      robotPending = false;
-      sendToServer({
-        type: MessageTypes.REQUEST_ROBOT,
-        gameId: (response as { game: { gameId: string } }).game.gameId,
-      });
+    if (response.type === MessageTypes.START_GAME && pendingRobots.length > 0) {
+      const names = pendingRobots;
+      pendingRobots = [];
+      const { gameId } = (response as { game: { gameId: string } }).game;
+      names.forEach((robotName) =>
+        sendToServer({
+          type: MessageTypes.REQUEST_ROBOT,
+          gameId,
+          ...(robotName ? { robotName } : {}),
+        })
+      );
     }
     if (response.type === MessageTypes.JOIN_GAME) {
       const game = (response as { game: { gameId: string; players: string[] } })

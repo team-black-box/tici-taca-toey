@@ -325,6 +325,11 @@ const LobbyScreen = () => {
           ghost
           onPress={() => navigation.navigate("Leaderboard")}
         />
+        <Btn
+          title="DAILY"
+          ghost
+          onPress={() => navigation.navigate("Daily")}
+        />
       </View>
 
       <View style={ui.panel}>

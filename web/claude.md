@@ -133,6 +133,34 @@ Run from inside `web/`:
   spectators always, opponents only when the host ticked "show cursors to
   everyone" at start - which the game header then says plainly, because
   being watched without knowing it would be a trap rather than a bluff.
+- Post-game analysis (`shared/analysis.ts`, shown in the replay): walks
+  a decoded TTN line and marks two things only - a win that was available
+  and not taken, and a block that was not made *and that the opponent
+  then took*. Facts the notation supports, deliberately not "best move",
+  which needs a search and an opinion. The letoff is only reported when
+  it was actually cashed in, otherwise every game fills with scolding
+  about threats nobody was going to play. Pure and client-side, so it
+  works on every game already in the corpus.
+- The daily position (`shared/daily.ts`, route `/daily`): one puzzle a
+  day, generated deterministically from the UTC date so every device
+  derives the same board with nothing fetched and no puzzle list stored.
+  Built by rejection sampling and only returned once it has **exactly
+  one** winning move - a puzzle with two answers is not a puzzle.
+  Progress is per-day in localStorage.
+- Turn alerts (`src/state/turn-alerts.ts`): the favicon gets a dot and
+  the title a count when games are waiting on you, and a system
+  notification fires when the tab is hidden. Permission is only ever
+  requested from the footer toggle - never on load. This does **not**
+  reach a closed browser; that needs the full Web Push stack (RFC 8291 +
+  8292) server-side and is an open decision, not an oversight. App.tsx
+  owns `document.title` - turn-alerts deliberately does not touch it,
+  because two effects writing one property resolve by render order.
+- Per-player neon lives in `.sym-0..9`, and `.cell` must not set a flat
+  `color`. It once did (`color: inherit`, to reset the UA button colour)
+  and sat later in the file at equal specificity, so it beat every
+  `.sym-*` and silently collapsed all boards to the default green for
+  some time. The reset is now `.cell:not([class*="sym-"])`, which is
+  order-independent - keep it that way.
 - The logo is an inline SVG component (`src/common/logo.tsx`), mirrored as
   `public/favicon.svg` - keep the two in sync.
 - `src/features/` - one folder per UI feature, unchanged from the 2020

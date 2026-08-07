@@ -16,6 +16,8 @@ export type RootStackParamList = {
   Replay: { ttn: string; roster?: ReplaySeat[] };
   // Browse routes, keyed by public handle.
   Leaderboard: undefined;
+  // One position a day - the only screen that needs no opponent.
+  Daily: undefined;
   Player: { handle: string };
 };
 

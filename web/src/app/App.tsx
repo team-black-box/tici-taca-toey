@@ -7,6 +7,7 @@ import Listing from "../features/listing/Listing";
 import Leaderboard from "../features/listing/Leaderboard";
 import History from "../features/listing/History";
 import Replay from "../features/replay/Replay";
+import Daily from "../features/daily/Daily";
 import LeaderboardPage from "../features/leaderboard/LeaderboardPage";
 import PlayerPage from "../features/leaderboard/PlayerPage";
 import Help from "../features/help/Help";
@@ -25,7 +26,10 @@ import { joinGame, spectateGame } from "../state/actions";
 import {
   COMPLETED_GAME_STATUS,
   GameInteractionTypes,
+  GameStatus,
 } from "../common/model";
+import { updateTurnAlerts } from "../state/turn-alerts";
+import TurnAlertToggle from "../features/feedback/TurnAlertToggle";
 import { HeartIcon } from "../common/icons";
 import { setPlayerKey } from "../state/identity";
 import { APP_VERSION, RELEASE_URL } from "../common/version";
@@ -45,16 +49,56 @@ export default function App() {
   // Browse routes: the full standings, and one player's finished games.
   const isLeaderboard = type === "leaderboard";
   const isPlayer = type === "player";
+  // One position a day - the only route that needs no opponent.
+  const isDaily = type === "daily";
   // Any route that takes over the stage instead of showing a game.
-  const isBrowsing = isReplay || isLeaderboard || isPlayer;
+  const isBrowsing = isReplay || isLeaderboard || isPlayer || isDaily;
   const activeGameName = useAppSelector((state) =>
     state.currentPlayer.active
       ? state.games[state.currentPlayer.active]?.name
       : undefined
   );
 
+  // Games waiting on this player, right now. Recomputed from the store
+  // rather than tracked separately so it cannot drift from the board.
+  const waitingGames = useAppSelector((state) =>
+    state.currentPlayer.playing
+      .map((id) => state.games[id])
+      .filter(
+        (game) =>
+          game !== undefined &&
+          game.status === GameStatus.GAME_IN_PROGRESS &&
+          game.turn === state.currentPlayer.playerId
+      )
+      // Flattened to a string because a useSyncExternalStore snapshot has
+      // to be referentially stable - returning a fresh array on every
+      // read is an infinite render. Tab and newline separate, since game
+      // names contain spaces ("My Amazing Game") and would not survive
+      // being split on one.
+      .map((game) => `${game.gameId}\t${game.name}`)
+      .join("\n")
+  );
+
   useEffect(() => {
-    document.title = isReplay
+    // The favicon always carries it; a system notification only fires
+    // when the tab is hidden and you have opted in.
+    updateTurnAlerts(
+      waitingGames
+        .split("\n")
+        .filter(Boolean)
+        .map((entry) => {
+          const tab = entry.indexOf("\t");
+          return { id: entry.slice(0, tab), name: entry.slice(tab + 1) };
+        })
+    );
+  }, [waitingGames]);
+
+  const waitingCount = waitingGames.split("\n").filter(Boolean).length;
+
+  useEffect(() => {
+    const base = isDaily
+      ? "daily - tici-taca-toey"
+      : isReplay
       ? "replay - tici-taca-toey"
       : isLeaderboard
       ? "leaderboard - tici-taca-toey"
@@ -63,7 +107,18 @@ export default function App() {
       : activeGameName
       ? `${activeGameName} - tici-taca-toey`
       : "tici-taca-toey";
-  }, [isReplay, isLeaderboard, isPlayer, gameId, activeGameName]);
+    // A tab you are not looking at should still say you are holding
+    // somebody up.
+    document.title = waitingCount > 0 ? `(${waitingCount}) ${base}` : base;
+  }, [
+    isReplay,
+    isLeaderboard,
+    isPlayer,
+    isDaily,
+    gameId,
+    activeGameName,
+    waitingCount,
+  ]);
 
   useEffect(() => {
     // Importing an identity: /sync#<playerKey> - the fragment never reaches
@@ -155,7 +210,9 @@ export default function App() {
           <Leaderboard />
         </aside>
         <section className="stage">
-          {isReplay && gameId ? (
+          {isDaily ? (
+            <Daily />
+          ) : isReplay && gameId ? (
             <Replay ttn={gameId} search={search} />
           ) : isLeaderboard ? (
             <LeaderboardPage />
@@ -177,6 +234,15 @@ export default function App() {
             Made with <HeartIcon className="heart" /> in Bengaluru, India
             {" · "}
             <Help />
+            {" · "}
+            <button
+              className="footer-link footer-button"
+              onClick={() => navigate("/daily")}
+              title="one position a day, the same for everyone"
+            >
+              daily
+            </button>
+            <TurnAlertToggle />
             {" · "}
             <a className="footer-link" href="/privacy.html">
               privacy

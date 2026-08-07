@@ -47,6 +47,10 @@ const LeaderboardScreen = () => {
   const [loaded, setLoaded] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("rating");
   const [ascending, setAscending] = useState(false);
+  // Humans and machines share one board - a robot beating you should
+  // sting - but "how am I doing against people" and "how good are the
+  // machines" are different questions. A view, never a separate rating.
+  const [who, setWho] = useState<"all" | "humans" | "machines">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -68,8 +72,20 @@ const LeaderboardScreen = () => {
     };
   }, [pool]);
 
+  const visible = useMemo(
+    () =>
+      rows.filter((row) =>
+        who === "all"
+          ? true
+          : who === "humans"
+          ? row.kind === "human"
+          : row.kind !== "human"
+      ),
+    [rows, who]
+  );
+
   const sorted = useMemo(() => {
-    const copy = [...rows];
+    const copy = [...visible];
     copy.sort((a, b) => {
       const left = a[sortKey];
       const right = b[sortKey];
@@ -80,7 +96,7 @@ const LeaderboardScreen = () => {
       return ascending ? compared : -compared;
     });
     return copy;
-  }, [rows, sortKey, ascending]);
+  }, [visible, sortKey, ascending]);
 
   const sortBy = (key: SortKey) => {
     if (key === sortKey) {
@@ -108,6 +124,16 @@ const LeaderboardScreen = () => {
       >
         <View style={{ flexDirection: "row", marginBottom: 12 }}>
           <GlassPill title="< back" onPress={() => navigation.goBack()} />
+        </View>
+        <View style={{ flexDirection: "row", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+          {(["all", "humans", "machines"] as const).map((option) => (
+            <Btn
+              key={option}
+              title={option.toUpperCase()}
+              ghost={who !== option}
+              onPress={() => setWho(option)}
+            />
+          ))}
         </View>
         <Text style={[MONO, { color: C.accent, fontSize: 18, fontWeight: "700", marginBottom: 4 }]}>
           {"> leaderboard"}
