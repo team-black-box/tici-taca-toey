@@ -119,7 +119,7 @@ Two paths, and they are for different purposes:
   via **Xcode > Settings > Components**. Multi-GB download, your
   machine, your call on timing. Do this early; it is the long pole.
 
-### B7. The app has never run on a device or emulator
+### B7. The app has never run on a device or emulator - iOS DONE
 
 `TODO.md` has carried "Android emulator/device pass" as pending since
 before launch. We have shipped ten server releases without once seeing
@@ -129,7 +129,7 @@ to actually happen before we submit.
 
 ## Important, though not strictly blocking
 
-### I1. Universal Links and App Links are dead
+### I1. Universal Links and App Links are dead - iOS DONE, Android blocked on B4
 
 `https://ticitacatoey.com/.well-known/assetlinks.json` and
 `/.well-known/apple-app-site-association` both return **the SPA fallback
@@ -249,3 +249,20 @@ simulator or emulator.
   version now lives in three files that cannot import each other -
   verified it fails on drift. Full matrix green (server 149, web, sdk,
   mobile typecheck + both bundles).
+- 2026-08-07 16:49 IST - Ran the app for the first time, which was worth more than
+  everything else today. It did not launch: the iOS 26+ SDK requires the
+  UIScene life cycle and refuses to start without it, and RN 0.86 has no
+  scene support of its own. Adopted UIScene, and fixed a pod deployment
+  target (AsyncStorage at iOS 13, below Xcode's floor of 15) that was
+  failing the build first. The app now runs: connected, was minted an
+  identity with no key of its own (handle squiddy-4e4), started a game
+  against a resident robot, played a move, robot answered. Also caught
+  the new footer sitting under the floating tab bar. Universal Links
+  done for iOS (AASA + application/json serving + 3 tests, claiming only
+  the two paths the app can route); Android's assetlinks.json still
+  blocked on the release keystore. Matrix green: server 152, web, mobile.
+
+  Still open: B4 (release keystore, yours), B5 (Distribution signing,
+  yours), B6 (Xcode Components download, yours - the long pole for
+  submitting, since a beta-built archive is rejected), the Android
+  emulator half of B7, and I2 help parity.
