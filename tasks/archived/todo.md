@@ -117,3 +117,50 @@ these live beside this one in `tasks/archived/`.
   full game verified on the deployed stack; production-branch=release and
   domains documented for cutover
   ([task file](./vercel-dev-deployment.md)) (completed 2026-07-18)
+
+- Post-launch fixes: the production leaderboard was empty because
+  `getServerHttpBase` kept the socket's `/ws` path, so `/api/*` fetches
+  missed - now takes the origin. Also: history/player cards no longer
+  overflow, starting a game from a browse page redirects to it, a
+  spectator can take an open seat (upgrade to player), and a player can
+  forfeit ("gg"). ([task file](./post-launch-fixes.md)) (completed 2026-07-23)
+
+- Standings, public games, and polish: a sortable **leaderboard page**
+  where every row opens that player's games and any game replays;
+  **public games** - a game is private until its host opens it, then
+  strangers can take a seat from the lobby; **default handles** in the
+  house style so nobody is "anonymous" and every row is clickable;
+  **agent badges** distinguishing MCP-connected AI from SDK robots; and
+  **move animations** plus live-game activity in the lobby. Web and
+  mobile ([task file](./browse-and-public-games.md)). Also fixed: a board
+  that could overflow its column and slide under the rail, a client route
+  shadowed by an API path of the same name (read API now under `/api/`),
+  and a production 500 from a database predating the new schema - it now
+  migrates itself. (completed 2026-07-23)
+
+- Game variants, ratings, and history: four features shipped together
+  across server, web, and mobile ([variants](./game-variants.md),
+  [ratings](./difficulty-elo.md), [history](./game-history.md)).
+  **Multiple win sequences** (e.g. four length-2 sequences on a 12x12) and
+  **teams** (sequences may combine teammates' marks) are new game variants
+  whose rules live once in `shared/rules.ts`; TTN v3 records them.
+  **Difficulty-weighted Elo** adds a headline `global` pool where the
+  K-factor scales with how hard the configuration is, alongside the
+  per-config pools. **Personal game history** lists your finished games
+  with one-click replay, served over the websocket. Also: the leaderboard
+  no longer exposes player ids, and the `/players/*` and `/games/:id`
+  endpoints are gone (history moved to the socket). Robots are
+  variant-aware. (completed 2026-07-23)
+
+- MCP over streamable HTTP: the game server serves `/mcp` itself, so an
+  agent connects with a URL and no local install. A session is an
+  in-process player; `shared/mcp.ts` holds the one tool contract both
+  transports serve. 6 e2e tests drive the endpoint like an agent,
+  including a full game against a resident robot. (completed 2026-07-23)
+
+- Deep-link blank page and UI fixes: absolute asset paths (v1.0.2), logo
+  returns home, no spurious error when a game ends, centred sync QR,
+  crop-safe OG image (v1.0.3). (completed 2026-07-23)
+
+- Liveness watchdog: restarts the unit after two consecutive /health
+  misses, closing the wedged-but-running gap (v1.0.1). (completed 2026-07-23)

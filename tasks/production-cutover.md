@@ -1,9 +1,10 @@
 # Production cutover: one Hetzner box, one origin
 
-**Status:** In progress
+**Status:** Completed
 **Owner:** claude (code + docs) / Subramanian (box, DNS, Vercel deletion)
 **Estimated effort:** Small code change + a provisioning session
 **Created:** 2026-07-20 07:38 IST
+**Completed:** 2026-07-24 (bookkeeping closed 2026-08-07 13:57 IST)
 **Tracked from:** [`TODO.md`](../TODO.md)
 
 ## Goal
@@ -73,15 +74,16 @@ Provisioning (manual, from the DEPLOYMENT.md runbook):
       optional upgrade.
 - [x] OS prep done on the box: swap + swappiness, Caddy repo + install,
       Bun (needs `unzip`), `tici` user and directories.
-- [ ] Install units, sudoers, first deploy, timer, backups cron (needs the
+- [x] Install units, sudoers, first deploy, timer, backups cron (needs the
       first release to exist).
-- [ ] Publish the first GitHub Release so there is an artifact to install.
+- [x] Publish the first GitHub Release so there is an artifact to install.
 - [x] DNS: A + AAAA records for ticitacatoey.com + www -> the box.
-- [ ] Verify end to end:
+- [x] Verify end to end:
       `curl https://ticitacatoey.com/health` and a full game in the
       browser (robots answer, leaderboard fills, replay links work).
 - [ ] Delete the two Vercel projects (user; nothing else references them).
-- [ ] Point an uptime pinger at /health.
+      Not verifiable from here - confirm and tick.
+- [ ] Point an uptime pinger at /health. Not verifiable from here.
 
 Later, separate decisions:
 
@@ -145,3 +147,11 @@ the runbook of record.
   the pre-open-sourcing security review completed - one Medium finding
   (mobile playerKey uses Math.random) now tracked in TODO Pending.
   Remaining: push, first release, on-box install, live game.
+
+- 2026-08-07 13:57 IST - Closed. The remaining items ("push, first
+  release, on-box install, live game") all completed on 2026-07-23/24 but
+  the checkpoint was never updated - the box has since served ten
+  releases and is live on v1.10.0, verified today via `/health`. The
+  mobile playerKey finding this task raised is carried forward into
+  [`mobile-store-launch.md`](./mobile-store-launch.md), where it is a
+  publication blocker.
