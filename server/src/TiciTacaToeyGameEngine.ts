@@ -70,6 +70,14 @@ export interface EngineOptions {
 const hashPlayerKey = (key: string): string =>
   new Bun.CryptoHasher("sha256").update(key).digest("hex");
 
+// Did the client bring a key we can actually use as a credential? An
+// absent, empty, or too-short one is not a durable identity - the server
+// mints a real one instead (see mintPlayerKey).
+export const isUsablePlayerKey = (key: unknown): key is string =>
+  typeof key === "string" &&
+  key.length >= MIN_PLAYER_KEY_LENGTH &&
+  key.length <= MAX_PLAYER_KEY_LENGTH;
+
 const sanitizeName = (name: unknown): string =>
   typeof name === "string" ? name.slice(0, MAX_NAME_LENGTH) : "";
 
@@ -203,6 +211,9 @@ class TiciTacaToeyGameEngine implements GameEngine {
   #disconnectGraceMs: number;
   #db?: GameDb;
   #handleOutcomes: Map<string, { ok: boolean; handle: string; reason?: string }>;
+  // playerId -> the key we just minted for them, drained by notify on the
+  // way out. Held for exactly one message.
+  #mintedKeys: Map<string, string>;
   // Presence, deliberately *not* on Game: a cursor is not game state, must
   // never reach the TTN line or the archive, and must vanish with the game
   // it belongs to. gameId -> seat -> cell.
@@ -223,6 +234,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
       options.disconnectGraceMs ?? DEFAULT_DISCONNECT_GRACE_MS;
     this.#db = options.db;
     this.#handleOutcomes = new Map();
+    this.#mintedKeys = new Map();
     this.#cursors = new Map();
     this.#cursorsDirty = new Set();
   }
@@ -232,6 +244,28 @@ class TiciTacaToeyGameEngine implements GameEngine {
   // reconnecting socket acts as the same player.
   get db(): GameDb | undefined {
     return this.#db;
+  }
+
+  // Mint a durable identity for a client that arrived without a usable
+  // one. A client that *can* generate its own should - the web uses
+  // `crypto.randomUUID`. This exists because React Native's runtime has
+  // no CSPRNG, and the mobile app was building the only credential in the
+  // system out of `Math.random()` plus a timestamp, which is guessable
+  // and therefore not a credential at all.
+  //
+  // The key goes back to exactly one connection, in its own
+  // REGISTER_PLAYER response, and is recorded here only until `notify`
+  // picks it up. Because it is stamped onto the message that the caller
+  // then plays, it flows through `attachPlayer` like any client-supplied
+  // key and gets its hash persisted - so the identity survives restarts.
+  mintPlayerKey(fallbackPlayerId: string): {
+    playerId: string;
+    playerKey: string;
+  } {
+    const playerKey = crypto.randomUUID();
+    const playerId = this.resolvePlayerKey(playerKey, fallbackPlayerId);
+    this.#mintedKeys.set(playerId, playerKey);
+    return { playerId, playerKey };
   }
 
   resolvePlayerKey(playerKey: unknown, fallbackPlayerId: string): string {
@@ -1467,6 +1501,11 @@ class TiciTacaToeyGameEngine implements GameEngine {
     switch (message.type) {
       case MessageTypes.REGISTER_PLAYER:
       case MessageTypes.REGISTER_ROBOT: {
+        // If we minted this player a key, hand it back exactly once, to
+        // exactly this connection. safeSend to message.connection is the
+        // only place it can go - it is never part of a broadcast.
+        const minted = this.#mintedKeys.get(message.playerId);
+        this.#mintedKeys.delete(message.playerId);
         const response: Response = {
           type: message.type,
           // The stored name, so a resuming client gets its handle back even
@@ -1475,6 +1514,7 @@ class TiciTacaToeyGameEngine implements GameEngine {
             this.players[message.playerId]?.name ?? sanitizeName(message.name),
           playerId: message.playerId,
           kind: this.players[message.playerId]?.kind ?? PlayerKind.HUMAN,
+          ...(minted === undefined ? {} : { playerKey: minted }),
         };
         safeSend(message.connection, JSON.stringify(response));
         this.notifyResumedGames(message.playerId, message.connection);

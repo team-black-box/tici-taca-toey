@@ -157,6 +157,12 @@ export interface RobotSummary {
 
 export interface RegisterPlayerResponse extends Player {
   type: MessageTypes.REGISTER_PLAYER | MessageTypes.REGISTER_ROBOT;
+  // Present only when the server minted a durable identity for a client
+  // that arrived without one - see `mintPlayerKey` in the engine. This is
+  // a **secret**: it is sent to exactly one connection, the one that just
+  // registered, and must never be logged, broadcast, or put in a URL.
+  // Clients that generate their own key never see this field.
+  playerKey?: string;
 }
 
 export interface GameActionResponse extends GameState {

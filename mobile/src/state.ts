@@ -286,6 +286,17 @@ const connect = () => {
       if (response.type === MessageTypes.JOIN_GAME && response.game) {
         freshGames.add(response.game.gameId);
       }
+      // A durable identity minted for us on a first run - store it before
+      // anything else, because every later reconnect registers with it.
+      // Present only when we registered without one.
+      if (
+        response.type === MessageTypes.REGISTER_PLAYER &&
+        typeof response.playerKey === "string" &&
+        response.playerKey.length > 0
+      ) {
+        playerKey = response.playerKey;
+        storage.setString(PLAYER_KEY, playerKey);
+      }
       if (response.type === MessageTypes.START_GAME && robotPending) {
         robotPending = false;
         sendToServer({
@@ -376,16 +387,19 @@ export const openGameLink = (url: string | null): boolean => {
   return true;
 };
 
-// Load identity, then connect - the register message needs the playerKey.
+// Load identity, then connect - the register message carries the
+// playerKey when we have one.
+//
+// On a first run we deliberately have none, and do **not** invent one:
+// React Native's runtime has no CSPRNG (no `crypto.getRandomValues` as of
+// RN 0.86), and this key is the only credential in the system - whoever
+// holds it is that player. An earlier version built it from `Date.now()`
+// plus two `Math.random()` calls, which is guessable and so not a
+// credential at all. Instead we register with nothing, and the server
+// mints one with real entropy and returns it in our own registration
+// response (see `mintPlayerKey` in the engine). It is stored on arrival.
 const bootstrap = async () => {
   playerKey = (await storage.getString(PLAYER_KEY)) ?? "";
-  if (!playerKey) {
-    // RN has no crypto.randomUUID; this is a key, not cryptography.
-    playerKey = `m-${Date.now().toString(36)}-${Math.random()
-      .toString(36)
-      .slice(2, 12)}-${Math.random().toString(36).slice(2, 12)}`;
-    storage.setString(PLAYER_KEY, playerKey);
-  }
   const storedHandle = await storage.getString(HANDLE_KEY);
   if (storedHandle) {
     reduce({ type: MessageTypes.UPDATE_NAME, name: storedHandle } as Response);

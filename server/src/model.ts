@@ -32,6 +32,11 @@ export interface GameEngine {
   play: (message: Message, notify?: boolean) => Promise<GameEngine>;
   // Maps a secret playerKey to a stable playerId; see the engine.
   resolvePlayerKey: (playerKey: unknown, fallbackPlayerId: string) => string;
+  // Mints a durable identity for a client that brought no usable key.
+  mintPlayerKey: (fallbackPlayerId: string) => {
+    playerId: string;
+    playerKey: string;
+  };
   validate: (message: Message) => Promise<Message>;
   transition: (message: Message) => void;
   notify: (message: Message) => void;

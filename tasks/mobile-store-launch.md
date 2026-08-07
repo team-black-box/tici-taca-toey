@@ -1,7 +1,7 @@
 # Publish the mobile app
 
-**Status:** Pending
-**Owner:** unassigned
+**Status:** In progress
+**Owner:** Claude (code) / Subramanian (accounts, signing, Xcode, submit)
 **Estimated effort:** 2-4 days of work, plus store review time (Apple 1-3
 days, Google a few hours to 7 days, neither of which we control)
 **Created:** 2026-08-07 13:57 IST
@@ -162,21 +162,18 @@ Not a gap, despite looking like one: **mobile has no QR invite**. It
 uses the native share sheet, which is the right idiom on a phone - the
 QR exists on web so a laptop screen can be scanned *by* a phone.
 
-## Decisions needed from you
+## Decisions (resolved 2026-08-07)
 
-1. **Version scheme.** Recommend the mobile app carry the repo tag it
-   ships from, so "what version is this?" has one answer across
-   `/health`, the web footer, and the phone - the project's existing
-   philosophy. First submission would then be v1.11.0 rather than a
-   tidy 1.0.0. The alternative is an independent mobile semver starting
-   at 1.0.0, which reads better in store release notes but means two
-   version languages. Build numbers stay monotonic either way.
-2. **Both stores at once, or iOS first?** Play has a much shorter review
-   loop and no Xcode dependency, so shipping Android first would get us
-   live sooner while B6 resolves. Recommend Play first unless you want a
-   simultaneous launch.
-3. **Scope of I2.** Help parity is the one I would keep; the increment
-   picker can wait.
+1. **Version scheme: the mobile app carries the repo tag it ships from.**
+   So "what version is this?" has one answer across `/health`, the web
+   footer, and the phone. First submission goes out as **v1.11.0**.
+   Build numbers (`CURRENT_PROJECT_VERSION`, `versionCode`) stay
+   monotonic integers independent of the tag, since stores require that.
+2. **Both stores simultaneously.** This makes B6 (the Xcode platform
+   component download) the gating item for the whole launch - it is the
+   one thing with a hard, unskippable lead time. Everything else runs in
+   parallel with it.
+3. **Scope of I2:** help parity is in; the increment picker can wait.
 
 ## Sequence
 

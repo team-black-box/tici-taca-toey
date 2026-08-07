@@ -1,4 +1,6 @@
-import TiciTacaToeyGameEngine from "./TiciTacaToeyGameEngine";
+import TiciTacaToeyGameEngine, {
+  isUsablePlayerKey,
+} from "./TiciTacaToeyGameEngine";
 import { GameDb, GLOBAL_POOL } from "./db";
 import { startResidents } from "./residents";
 import { createStaticHandler } from "./static";
@@ -368,13 +370,26 @@ const server = Bun.serve<SocketData>({
       if (
         "type" in message &&
         (message.type === MessageTypes.REGISTER_PLAYER ||
-          message.type === MessageTypes.REGISTER_ROBOT) &&
-        "playerKey" in message
+          message.type === MessageTypes.REGISTER_ROBOT)
       ) {
-        ws.data.playerId = engine.resolvePlayerKey(
-          message.playerKey,
-          ws.data.playerId
-        );
+        const supplied = (message as { playerKey?: unknown }).playerKey;
+        if (isUsablePlayerKey(supplied)) {
+          ws.data.playerId = engine.resolvePlayerKey(
+            supplied,
+            ws.data.playerId
+          );
+        } else if (message.type === MessageTypes.REGISTER_PLAYER) {
+          // A human client with no usable key of its own gets one minted
+          // here, with real entropy. Stamping it onto the message means
+          // the rest of the pipeline treats it exactly like a
+          // client-supplied key - including persisting its hash - so the
+          // identity survives a restart. Robots are left alone: they get
+          // their key from configuration, and a robot without one is
+          // meant to be ephemeral.
+          const minted = engine.mintPlayerKey(ws.data.playerId);
+          ws.data.playerId = minted.playerId;
+          (message as { playerKey?: string }).playerKey = minted.playerKey;
+        }
       }
 
       // `kind` is server-assigned (REGISTER_ROBOT makes a robot, an MCP
