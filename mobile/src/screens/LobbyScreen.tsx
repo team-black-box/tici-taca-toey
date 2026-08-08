@@ -1,25 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { Linking, Modal, ScrollView, Share, Switch, Text, TextInput, View, Pressable } from "react-native";
+import { ScrollView, Switch, Text, View, Pressable } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, MONO, getStatusForViewer } from "../theme";
-import { Avatar, Badge, Btn, Field, styles as ui } from "../ui";
+import { Badge, Btn, Field, styles as ui } from "../ui";
 import { decodeTtn } from "../ttn";
 import { describeGoal } from "../rules";
 import { GameStatus } from "../model";
-import { APP_VERSION, PRIVACY_URL, TERMS_URL } from "../version";
 import {
   useAppSelector,
-  updateCurrentPlayerName,
-  claimHandle,
   startGame,
   startRobotGame,
   joinGame,
   spectateGame,
   setActiveGame,
-  exportSyncUrl,
-  importIdentity,
 } from "../state";
 import { FeedbackBanner } from "../ui";
 import type { RootStackParamList } from "../navigation";
@@ -35,7 +30,6 @@ const LobbyScreen = () => {
   const games = useAppSelector((state) => state.games);
   const players = useAppSelector((state) => state.players);
   const connected = useAppSelector((state) => state.currentPlayer.connected);
-  const history = useAppSelector((state) => state.history);
   const lobby = useAppSelector((state) => state.lobby);
 
   // Games whose host opened a seat to strangers, and that still have one.
@@ -69,8 +63,6 @@ const LobbyScreen = () => {
   );
   const chosenTeams = teamChoices.includes(teams) ? teams : 0;
   const [link, setLink] = useState("");
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [syncCode, setSyncCode] = useState("");
 
   // When a new game becomes active (started/joined/resumed), open it.
   const lastActive = useRef(active);
@@ -91,33 +83,14 @@ const LobbyScreen = () => {
       // exactly the thing an app reviewer taps first.
       contentContainerStyle={{ padding: 14, paddingTop: insets.top + 8, paddingBottom: 190 }}
     >
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 14,
-        }}
+      {/* Just the brand. The handle moved to the "you" tab - it is
+          identity, not a thing you need in front of you while choosing
+          a board. */}
+      <Text
+        style={[MONO, { color: C.accent, fontSize: 18, fontWeight: "700", marginBottom: 14 }]}
       >
-        <Text style={[MONO, { color: C.accent, fontSize: 18, fontWeight: "700", flex: 1 }]}>
-          tici-taca-toey_
-        </Text>
-        <TextInput
-          style={[ui.input, { width: 140, textAlign: "right" }]}
-          value={name}
-          onChangeText={updateCurrentPlayerName}
-          onSubmitEditing={() => {
-            if (name.trim()) {
-              claimHandle(name.trim());
-            }
-          }}
-          placeholder="handle + return"
-          placeholderTextColor={C.dim}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <Avatar name={name} size={11} />
-      </View>
+        tici-taca-toey_
+      </Text>
 
       {!connected && (
         <Text style={[MONO, { color: C.danger, marginBottom: 10 }]}>
@@ -134,129 +107,14 @@ const LobbyScreen = () => {
             10 players, line length you choose, chess clocks optional.
             robots are standing by.
           </Text>
-          {/* Both ways to start that need nobody else, together. */}
-          <View style={{ flexDirection: "row", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <Btn title="PLAY A ROBOT NOW" onPress={startRobotGame} />
-            <Btn
-              title="TODAY'S PUZZLE"
-              onPress={() => navigation.navigate("Daily")}
-            />
-            <Pressable onPress={() => setHelpOpen(true)}>
-              <Text style={[MONO, { color: C.dim, fontSize: 12 }]}>? help</Text>
-            </Pressable>
-          </View>
-          <Text style={[MONO, { color: C.dim, fontSize: 10, marginTop: 6 }]}>
-            one position a day, the same for everyone
+          <Btn title="PLAY A ROBOT NOW" onPress={startRobotGame} />
+          <Text style={[MONO, { color: C.dim, fontSize: 10, marginTop: 8 }]}>
+            or set up your own below. today's puzzle, the standings, and
+            your games are in the tabs.
           </Text>
         </View>
       )}
 
-      {/* onRequestClose is what wires up Android's back gesture. Without
-          it the modal simply ignores back, which on Android reads as the
-          app being stuck - there is no other way out of a full-screen
-          overlay there, and it is the first thing anyone tries. iOS has
-          no back gesture for this, so the CLOSE button stays. */}
-      <Modal
-        visible={helpOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setHelpOpen(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", padding: 20 }}>
-          {/* Scrolls, because this is the same material the web help
-              covers and it does not fit on a phone otherwise - and the
-              phone is where a new player most needs it. */}
-          <ScrollView
-            style={{ maxHeight: "88%" }}
-            contentContainerStyle={{ paddingBottom: 4 }}
-          >
-          <View style={[ui.panel, { borderColor: C.accent }]}>
-            <Text style={ui.panelTitle}>{"> how to play"}</Text>
-            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
-              tic-tac-toe with the dials exposed. take turns placing your
-              mark; win by making a line - marks in a row across, down, or
-              diagonally - before anyone else.
-            </Text>
-            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
-              two settings decide what winning means, and the game always
-              spells the goal out under its name:
-            </Text>
-            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 4 }]}>
-              <Text style={{ color: C.accent }}>in a row</Text> - how long a
-              line has to be. 3 is classic; on a big board try 4 or 5.
-            </Text>
-            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
-              <Text style={{ color: C.accent }}>lines</Text> - how many
-              separate lines you need. usually 1. set it higher and the game
-              runs until someone completes that many (lines may cross, like
-              a crossword).
-            </Text>
-            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
-              boards go 2-12, players 2-10. in a team game your teammates'
-              marks count toward the same lines. timed games run chess
-              clocks: run out and you lose. gg forfeits.
-            </Text>
-
-            <Text style={ui.panelTitle}>{"> who you play"}</Text>
-            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
-              play a robot now summons an opponent: rando plays chaos,
-              greedo blocks and pounces, minnie-max never loses a 3x3.
-              invite humans with the share link. watch anything live from
-              the watch tab. play as many boards at once as you dare.
-            </Text>
-
-            <Text style={ui.panelTitle}>{"> cursors"}</Text>
-            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
-              while a game is live you can see where the others are
-              thinking, as a dim ghost of their mark. teammates and
-              spectators always see them; opponents only if the host turned
-              "show cursors to everyone" on at the start, which the game
-              header then says. a hover you do not mean is a perfectly good
-              bluff. your phone shows everyone else's but sends none of its
-              own - a finger has no hover.
-            </Text>
-
-            <Text style={ui.panelTitle}>{"> your identity"}</Text>
-            <Text style={[MONO, { color: C.fg, fontSize: 12, marginBottom: 8 }]}>
-              claim a handle (type it top-right, hit return) - claimed
-              handles are unique and put you on the leaderboard. every
-              finished game replays from its notation line, move by move.
-            </Text>
-
-            <Text style={ui.panelTitle}>{"> sync devices"}</Text>
-            <Btn
-              title="SHARE MY SYNC CODE"
-              ghost
-              onPress={() => Share.share({ message: exportSyncUrl() })}
-            />
-            <Text style={[MONO, { color: C.dim, fontSize: 10, marginVertical: 6 }]}>
-              the code is your account - share it with no one else. paste a
-              code from another device below to import that identity here.
-            </Text>
-            <TextInput
-              style={ui.input}
-              value={syncCode}
-              onChangeText={setSyncCode}
-              placeholder="paste sync code"
-              placeholderTextColor={C.dim}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {syncCode.trim().length > 0 && (
-              <Btn
-                title="IMPORT IDENTITY"
-                onPress={() => {
-                  importIdentity(syncCode);
-                  setSyncCode("");
-                  setHelpOpen(false);
-                }}
-              />
-            )}
-            <Btn title="CLOSE" ghost onPress={() => setHelpOpen(false)} />
-          </View>
-          </ScrollView>
-        </View>
-      </Modal>
 
       {playing.length > 0 && (
         <View style={{ marginBottom: 4 }}>
@@ -327,22 +185,6 @@ const LobbyScreen = () => {
         </View>
       )}
 
-      {/* Always reachable. The welcome panel's copy of this button is the
-          prominent one, but it only renders while you have no games -
-          without this row the daily would vanish the moment you started
-          playing, which is exactly when you would come back for it. */}
-      <View style={{ flexDirection: "row", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-        <Btn
-          title="LEADERBOARD"
-          ghost
-          onPress={() => navigation.navigate("Leaderboard")}
-        />
-        <Btn
-          title="DAILY"
-          ghost
-          onPress={() => navigation.navigate("Daily")}
-        />
-      </View>
 
       <View style={ui.panel}>
         <Text style={ui.panelTitle}>{"> start new game"}</Text>
@@ -439,76 +281,6 @@ const LobbyScreen = () => {
         />
       </View>
 
-      {history.length > 0 && (
-        <View style={{ marginBottom: 4 }}>
-          <Text style={ui.panelTitle}>{"> your finished games"}</Text>
-          {history.slice(0, 10).map((game) => {
-            const decoded = (() => {
-              try {
-                return decodeTtn(game.ttn);
-              } catch {
-                return null;
-              }
-            })();
-            const teams = decoded?.teamCount ?? 0;
-            const iWon =
-              game.winnerSeat !== null &&
-              game.mySeat >= 0 &&
-              (teams > 0
-                ? game.winnerSeat % teams === game.mySeat % teams
-                : game.winnerSeat === game.mySeat);
-            const result =
-              game.status === GameStatus.GAME_ENDS_IN_A_DRAW
-                ? { text: "DRAW", color: C.info }
-                : game.status === GameStatus.GAME_ABANDONED
-                ? { text: "ABANDONED", color: C.danger }
-                : iWon
-                ? { text: "WON", color: C.info }
-                : { text: "LOST", color: C.danger };
-            return (
-              <Pressable
-                key={game.gameId}
-                style={ui.tile}
-                onPress={() =>
-                  navigation.navigate("Replay", {
-                    ttn: game.ttn,
-                    roster: game.players,
-                  })
-                }
-              >
-                <View>
-                  <Badge text={result.text} color={result.color} />
-                  <Text style={[MONO, { color: C.dim, fontSize: 10, marginTop: 6 }]}>
-                    {game.players.map((player) => player.handle).join(" vs ")}
-                  </Text>
-                </View>
-                <Text style={ui.tileMeta}>
-                  {decoded ? `${decoded.boardSize}x${decoded.boardSize}` : ""}
-                  {"\n"}
-                  {decoded && decoded.winningSequenceCount > 1
-                    ? `${decoded.winningSequenceCount}x${decoded.winningSequenceLength}`
-                    : teams > 0
-                    ? `${teams} teams`
-                    : "tap to replay"}
-                </Text>
-              </Pressable>
-            );
-          })}
-          {name.trim().length > 0 && (
-            <Btn
-              title={
-                history.length > 10
-                  ? `SEE ALL ${history.length} GAMES`
-                  : "YOUR PROFILE"
-              }
-              ghost
-              onPress={() =>
-                navigation.navigate("Player", { handle: name.trim() })
-              }
-            />
-          )}
-        </View>
-      )}
 
       <View style={ui.panel}>
         <Text style={ui.panelTitle}>{"> join game"}</Text>
@@ -533,36 +305,6 @@ const LobbyScreen = () => {
         )}
       </View>
 
-      {/* The web's footer, in the one place a phone has room for it.
-          Both stores require a reachable privacy policy, and the version
-          is what makes a support conversation possible. */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "center",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 6,
-          marginTop: 14,
-          marginBottom: 4,
-        }}
-      >
-        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>
-          made with ♥ in Bengaluru
-        </Text>
-        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>·</Text>
-        <Pressable onPress={() => Linking.openURL(PRIVACY_URL)}>
-          <Text style={[MONO, { color: C.accent, fontSize: 10 }]}>privacy</Text>
-        </Pressable>
-        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>·</Text>
-        <Pressable onPress={() => Linking.openURL(TERMS_URL)}>
-          <Text style={[MONO, { color: C.accent, fontSize: 10 }]}>terms</Text>
-        </Pressable>
-        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>·</Text>
-        <Text style={[MONO, { color: C.dim, fontSize: 10 }]}>
-          v{APP_VERSION}
-        </Text>
-      </View>
     </ScrollView>
   );
 };

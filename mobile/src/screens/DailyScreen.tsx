@@ -5,7 +5,6 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, MONO, SYMBOLS } from "../theme";
 import { Badge, Btn, styles as ui } from "../ui";
-import { GlassPill } from "../glass";
 import { dailyPuzzle, dayKey, shareDaily } from "../daily";
 import { cellName } from "../analysis";
 import * as storage from "../storage";
@@ -77,9 +76,6 @@ const DailyScreen = () => {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScrollView contentContainerStyle={{ padding: 14, paddingTop: insets.top + 8, paddingBottom: 150 }}>
-        <View style={{ flexDirection: "row", marginBottom: 12 }}>
-          <GlassPill title="< back" onPress={() => navigation.goBack()} />
-        </View>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <Text style={[MONO, { color: C.fg, fontSize: 17, fontWeight: "700" }]}>
             daily
@@ -170,7 +166,7 @@ const DailyScreen = () => {
               <Btn
                 title="PLAY A REAL GAME >"
                 ghost
-                onPress={() => navigation.goBack()}
+                onPress={() => navigation.navigate("Tabs", { screen: "play" })}
               />
             </View>
           </>

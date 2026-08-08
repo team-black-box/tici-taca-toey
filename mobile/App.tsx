@@ -14,6 +14,7 @@ import WatchScreen from "./src/screens/WatchScreen";
 import GameScreen from "./src/screens/GameScreen";
 import ReplayScreen from "./src/screens/ReplayScreen";
 import DailyScreen from "./src/screens/DailyScreen";
+import YouScreen from "./src/screens/YouScreen";
 import LeaderboardScreen from "./src/screens/LeaderboardScreen";
 import PlayerScreen from "./src/screens/PlayerScreen";
 import type { RootStackParamList, TabParamList } from "./src/navigation";
@@ -40,6 +41,9 @@ const Tabs = () => (
   >
     <Tab.Screen name="play" component={LobbyScreen} options={{ title: "play" }} />
     <Tab.Screen name="watch" component={WatchScreen} options={{ title: "watch" }} />
+    <Tab.Screen name="daily" component={DailyScreen} options={{ title: "daily" }} />
+    <Tab.Screen name="ranks" component={LeaderboardScreen} options={{ title: "ranks" }} />
+    <Tab.Screen name="you" component={YouScreen} options={{ title: "you" }} />
   </Tab.Navigator>
 );
 
@@ -62,8 +66,6 @@ export default function App() {
           <Stack.Screen name="Tabs" component={Tabs} />
           <Stack.Screen name="Game" component={GameScreen} />
           <Stack.Screen name="Replay" component={ReplayScreen} />
-          <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
-          <Stack.Screen name="Daily" component={DailyScreen} />
           <Stack.Screen name="Player" component={PlayerScreen} />
         </Stack.Navigator>
       </NavigationContainer>

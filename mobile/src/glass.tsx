@@ -49,7 +49,10 @@ export const GlassTabBar = ({
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={[styles.tabText, focused && { color: C.accent }]}>
+              <Text
+                style={[styles.tabText, focused && { color: C.accent }]}
+                numberOfLines={1}
+              >
                 {focused ? `> ${label}` : label}
               </Text>
             </Pressable>
@@ -66,16 +69,25 @@ const styles = StyleSheet.create({
     bottom: 24,
     left: 0,
     right: 0,
-    alignItems: "center",
+    alignItems: "stretch",
+    paddingHorizontal: 10,
   },
+  // Equal-width tabs rather than content-sized ones. With two pills,
+  // padding was fine; at five it overflowed a phone, and the focused
+  // tab's "> " prefix shifted every other tab sideways as you moved
+  // between them. flex: 1 fixes both - the row is stable and the
+  // prefix grows into space the tab already owns.
   tabContainer: {
     flexDirection: "row",
-    gap: 10,
+    gap: 6,
   },
   tab: {
+    flex: 1,
     borderRadius: 12,
-    paddingHorizontal: 22,
-    paddingVertical: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 11,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "rgba(7, 14, 7, 0.92)",
     borderWidth: 1,
     borderColor: C.border,
@@ -90,8 +102,8 @@ const styles = StyleSheet.create({
   tabText: {
     ...MONO,
     color: C.fg,
-    fontSize: 13,
-    letterSpacing: 1,
+    fontSize: 12,
+    letterSpacing: 0.5,
   },
   pill: {
     borderRadius: 10,

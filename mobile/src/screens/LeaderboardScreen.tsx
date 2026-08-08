@@ -5,7 +5,6 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { C, MONO, kindMark } from "../theme";
 import { Btn, styles as ui } from "../ui";
-import { GlassPill } from "../glass";
 import { fetchLeaderboard } from "../state";
 import { PlayerKind } from "../model";
 import type { RootStackParamList } from "../navigation";
@@ -133,9 +132,6 @@ const LeaderboardScreen = () => {
       <ScrollView
         contentContainerStyle={{ padding: 14, paddingTop: insets.top + 8, paddingBottom: 120 }}
       >
-        <View style={{ flexDirection: "row", marginBottom: 12 }}>
-          <GlassPill title="< back" onPress={() => navigation.goBack()} />
-        </View>
         <View style={{ flexDirection: "row", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
           {(["all", "humans", "machines"] as const).map((option) => (
             <Btn
