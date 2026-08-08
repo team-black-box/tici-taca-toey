@@ -338,3 +338,28 @@ simulator or emulator.
   while the **watch** tab listed the same games again as spectate
   targets. Watch is now live games only, and the open panel always shows
   itself, saying how to get listed there.
+- 2026-08-08 15:51 IST - Fixed a large empty margin at the top of the play, watch and
+  you tabs on iOS, reported from a screenshot. It was not a style value
+  anywhere: iOS adds the safe-area inset to a scroll view on its own, but
+  only when that scroll view is the screen's *root* view. Those three
+  screens returned a `ScrollView` directly and so got the inset twice -
+  once from iOS, once from their own `paddingTop: insets.top + 8` - while
+  the five screens that happened to wrap theirs in a `View` were correct.
+  Same code, different markup shape, different layout. Neither
+  `contentInsetAdjustmentBehavior="never"` nor
+  `automaticallyAdjustContentInsets={false}` turned it off inside the
+  native tab navigator; both were tried on the device and measured, and
+  both were reverted rather than left in as no-ops. The fix is a `scene()`
+  wrapper in `App.tsx` giving every screen a plain `View` root, so no
+  screen is ever the root scroll view and the rule stops depending on how
+  a screen happens to be written. Verified on all three tabs on iOS and
+  confirmed no change on Android.
+
+  Tab icons aligned across platforms while there: they are now matched by
+  meaning, glyph for SF Symbol. `ranks` had been a triangle, the same
+  shape as `play`, and is now a bar chart to match `chart.bar`; `you` was
+  an `@`, then briefly `☻`, which Android substituted with the colour
+  emoji - it is now `웃`, the mark this app already uses for a human.
+  Block glyphs sit on the baseline rather than the optical centre, so
+  the bar chart carries a small `lift` to line up with its neighbours.
+  Matrix green: mobile typecheck + both bundles.

@@ -38,7 +38,25 @@ deep links, and store prep.
     fixed `height` on it: it adds the gesture inset to its own padding,
     so pinning the height crushes the labels into the home indicator.
   - Screens, order, and labels are declared once in the `TABS` array and
-    shared by both bars; only the icon differs.
+    shared by both bars; only the icon differs. The two icon sets are
+    matched by meaning, glyph for SF Symbol, so the bar reads the same on
+    either phone. Two rules learned the hard way: a glyph that Android
+    substitutes with a **colour emoji** (☺/☻ do) cannot be used - the bar
+    is monochrome; and block elements (`▁▄▆`) sit on the baseline rather
+    than the optical centre, so they need the `lift` field to line up
+    with the glyphs beside them.
+  - **Every scene gets a plain `View` root** (the `scene()` wrapper in
+    `App.tsx`). This is load-bearing. iOS adds the safe-area inset to a
+    scroll view by itself, but *only* when that scroll view is the
+    screen's root view - and inside the native tab navigator neither
+    `contentInsetAdjustmentBehavior` nor `automaticallyAdjustContentInsets`
+    turns it off (both were tried on a device). So screens whose root was
+    a `ScrollView` got that inset *and* their own `insets.top` padding
+    and started a full safe area too low, while screens that happened to
+    wrap theirs in a `View` looked right: same code, different markup
+    shape, different layout. With the wrapper, no screen is ever the root
+    scroll view, so each screen's `paddingTop: insets.top + 8` is the
+    only top inset on both platforms.
 - Deep links are React Navigation's `linking` config in `App.tsx` - one
   declaration covering cold start, warm arrival, and the back stack, not
   a `Linking` listener plus a regex. Paths match the web's routes where

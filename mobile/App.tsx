@@ -23,8 +23,9 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createNativeBottomTabNavigator } from "@react-navigation/bottom-tabs/unstable";
 import type { NativeBottomTabIcon } from "@react-navigation/bottom-tabs/unstable";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import type { ComponentType } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Platform, StatusBar, Text } from "react-native";
+import { Platform, StatusBar, Text, View } from "react-native";
 import { C, MONO } from "./src/theme";
 import LobbyScreen from "./src/screens/LobbyScreen";
 import WatchScreen from "./src/screens/WatchScreen";
@@ -46,6 +47,25 @@ type SFSymbol = Extract<NativeBottomTabIcon, { type: "sfSymbol" }>["name"];
 const NativeTab = createNativeBottomTabNavigator<TabParamList>();
 const JsTab = createBottomTabNavigator<TabParamList>();
 
+// iOS adds the safe-area inset to a scroll view on its own, but only
+// when that scroll view is the screen's root view - and inside the
+// native tab navigator neither `contentInsetAdjustmentBehavior` nor
+// `automaticallyAdjustContentInsets` turns it off (both were tried on
+// the device). So a screen whose root was a ScrollView got that inset
+// *and* its own `insets.top` padding, and started a full safe area too
+// low, while a screen that happened to wrap its ScrollView in a View
+// looked right. Same code, different markup shape, different layout.
+//
+// Rather than leave that as something each screen has to know, every
+// scene gets a plain View root here. No screen is ever the root scroll
+// view, so each screen's `paddingTop: insets.top + 8` is the only top
+// inset, on both platforms.
+const scene = (Screen: ComponentType) => () => (
+  <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <Screen />
+  </View>
+);
+
 const terminalTheme = {
   ...DarkTheme,
   colors: {
@@ -61,6 +81,11 @@ const terminalTheme = {
 // One list, two bars. The screens, their order, and their labels are
 // stated once; only the icon differs, because the two platforms want
 // different things from an icon.
+//
+// The two icon sets are matched by meaning, glyph for symbol, so the app
+// reads the same on either phone: `chart.bar` is three ascending blocks
+// rather than a triangle, which is what it used to be - and which made
+// "ranks" and "play" two triangles side by side.
 const TABS = [
   {
     name: "play",
@@ -74,15 +99,35 @@ const TABS = [
     name: "ranks",
     component: LeaderboardScreen,
     symbol: "chart.bar",
-    glyph: "▲",
+    // Block elements sit on the baseline and grow upward, so a full
+    // block reads heavier and lower than the outline glyphs beside it.
+    // Three-quarter height keeps the bar-chart shape and the weight;
+    // `lift` puts its optical centre on the same line as the others,
+    // which baseline alignment alone does not do.
+    glyph: "▁▄▆",
+    lift: 3,
   },
-  { name: "you", component: YouScreen, symbol: "person", glyph: "@" },
+  // 웃 rather than a smiling face: ☻ gets substituted with the colour
+  // emoji on Android, which is the one thing a monochrome terminal bar
+  // cannot have. This is already the app's mark for a human - the watch
+  // screen counts people with it.
+  { name: "you", component: YouScreen, symbol: "person", glyph: "웃" },
 ] as const satisfies readonly {
   name: keyof TabParamList;
-  component: React.ComponentType<never>;
+  component: ComponentType<never>;
   symbol: SFSymbol;
   glyph: string;
+  // Points to raise the glyph so it sits on the same optical line as
+  // the rest. Only baseline-anchored glyphs need it.
+  lift?: number;
 }[];
+
+// Wrapped once at module scope, not per render: a component created
+// inside render is a new type every time, which remounts the screen.
+const TAB_SCENES = TABS.map((tab) => ({ ...tab, scene: scene(tab.component) }));
+const GameScene = scene(GameScreen);
+const ReplayScene = scene(ReplayScreen);
+const PlayerScene = scene(PlayerScreen);
 
 // iOS gets the real UITabBarController: on iOS 26 that means Liquid
 // Glass, the system's switch animation, scroll-edge behavior and
@@ -90,11 +135,11 @@ const TABS = [
 // a system font, so the icons cost no assets.
 const NativeTabs = () => (
   <NativeTab.Navigator screenOptions={{ headerShown: false }}>
-    {TABS.map((tab) => (
+    {TAB_SCENES.map((tab) => (
       <NativeTab.Screen
         key={tab.name}
         name={tab.name}
-        component={tab.component}
+        component={tab.scene}
         options={{
           title: tab.name,
           tabBarIcon: { type: "sfSymbol", name: tab.symbol },
@@ -124,18 +169,29 @@ const JsTabs = () => (
         borderTopColor: C.border,
       },
       tabBarLabelStyle: { ...MONO, fontSize: 11 },
-      tabBarIcon: ({ color }) => (
-        <Text style={[MONO, { color, fontSize: 18 }]}>
-          {TABS.find((tab) => tab.name === route.name)?.glyph}
-        </Text>
-      ),
+      tabBarIcon: ({ color }) => {
+        const tab: { glyph: string; lift?: number } | undefined = TABS.find(
+          (entry) => entry.name === route.name
+        );
+        return (
+          <Text
+            style={[
+              MONO,
+              { color, fontSize: 18 },
+              tab?.lift ? { transform: [{ translateY: -tab.lift }] } : null,
+            ]}
+          >
+            {tab?.glyph}
+          </Text>
+        );
+      },
     })}
   >
-    {TABS.map((tab) => (
+    {TAB_SCENES.map((tab) => (
       <JsTab.Screen
         key={tab.name}
         name={tab.name}
-        component={tab.component}
+        component={tab.scene}
         options={{ title: tab.name }}
       />
     ))}
@@ -200,9 +256,9 @@ export default function App() {
       <NavigationContainer theme={terminalTheme} linking={linking}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Tabs" component={Tabs} />
-          <Stack.Screen name="Game" component={GameScreen} />
-          <Stack.Screen name="Replay" component={ReplayScreen} />
-          <Stack.Screen name="Player" component={PlayerScreen} />
+          <Stack.Screen name="Game" component={GameScene} />
+          <Stack.Screen name="Replay" component={ReplayScene} />
+          <Stack.Screen name="Player" component={PlayerScene} />
         </Stack.Navigator>
       </NavigationContainer>
     </SafeAreaProvider>
