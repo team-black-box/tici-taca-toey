@@ -356,9 +356,11 @@ const sendToServer = (message: unknown) => {
 // JOIN/SPECTATE response then sets the active game and the lobby screen's
 // active-game effect opens the game screen.
 
-const LINK_PATTERN =
-  /^(?:ticitacatoey:\/\/|https?:\/\/[^/]+\/)(play|spectate)\/([A-Za-z0-9_-]+)/;
-
+// React Navigation parses the URL and routes to the Game screen; this
+// is the part it cannot do, which is asking the server to seat you.
+// Kept here rather than in the screen because of the timing: a cold
+// start from a link runs before the socket has registered, so the
+// request has to wait for the connection and then fire.
 let pendingLink: { kind: string; gameId: string } | null = null;
 
 const flushPendingLink = () => {
@@ -386,14 +388,18 @@ const flushPendingLink = () => {
   });
 };
 
-// Returns true when the URL was a game link (App.tsx wires this to the
-// Linking module for both cold starts and warm arrivals).
-export const openGameLink = (url: string | null): boolean => {
-  const match = url ? LINK_PATTERN.exec(url) : null;
-  if (!match) {
+// Seat this device in a game arrived at by link. `mode` comes straight
+// off the URL and is therefore untrusted - the path pattern matches any
+// two segments - so anything that is not play or spectate is ignored.
+export const openGame = (mode: string, gameId: string): boolean => {
+  if (
+    (mode !== GameInteractionTypes.PLAY &&
+      mode !== GameInteractionTypes.SPECTATE) ||
+    !/^[A-Za-z0-9_-]+$/.test(gameId)
+  ) {
     return false;
   }
-  pendingLink = { kind: match[1], gameId: match[2] };
+  pendingLink = { kind: mode, gameId };
   flushPendingLink();
   return true;
 };

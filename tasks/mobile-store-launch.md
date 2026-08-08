@@ -298,3 +298,43 @@ simulator or emulator.
   serves the corrected key wording; and the leaderboard, home, and deep
   links are unaffected. assetlinks.json still returns the SPA fallback,
   as expected - it is the one thing waiting on the release keystore.
+- 2026-08-08 14:48 IST - Navigation rebuilt on React Navigation proper, replacing the
+  hand-rolled tab bar and the hand-rolled deep-link regex. iOS runs
+  `createNativeBottomTabNavigator`, so the bar is a real
+  UITabBarController - Liquid Glass on iOS 26, with the system's switch
+  animation and accessibility - with SF Symbol icons, which cost no
+  assets. Android could not use it: that navigator takes only an SF
+  Symbol or a bitmap, and Material's BottomNavigationView silently
+  collapses items that have neither, so four of five tabs vanished.
+  Android therefore runs React Navigation's JS tab bar, which takes a
+  rendered element, so the icon is a glyph in the same monospace as the
+  rest of the app. Screens, order and labels are declared once and
+  shared.
+
+  Deep links are now one `linking` config covering cold start, warm
+  arrival and the back stack. Verified on both platforms rather than
+  reasoned about: `daily`, `player/<handle>` and `replay/<ttn>` all
+  route, `play/<gameId>` routes *and* seats the phone in a live game,
+  and the loose `:mode/:gameId` pattern does not shadow the more
+  specific paths (React Navigation ranks by specificity). Android's
+  system back from a deep-linked screen returns to the tabs and stays in
+  the app.
+
+  Three real finds, all from running it. A deep link used to land in a
+  stack containing only that screen, so "< back" did nothing and the
+  tabs were unreachable - fixed with `initialRouteName`. `DailyScreen`
+  read storage during render; native tabs build every scene up front, so
+  that promise now resolved into an unmounted component and React said
+  so - moved to an effect. And the Android tab bar's fixed height was
+  eating the gesture inset, pushing the labels into the home indicator.
+  Also aligned the link paths with the web's real routes (`""`,
+  `/daily`, `/leaderboard`) and widened the Android App Links filter,
+  which only covered `/play/` and `/spectate/` - `/daily`,
+  `/leaderboard`, `/player/` and `/replay/` links could never have
+  reached the app. Matrix green: mobile typecheck + both bundles.
+
+  Also answered a question this raised: joinable games live in the
+  **play** tab's "open to anyone" panel, which was hidden when empty
+  while the **watch** tab listed the same games again as spectate
+  targets. Watch is now live games only, and the open panel always shows
+  itself, saying how to get listed there.

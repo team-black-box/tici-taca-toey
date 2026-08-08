@@ -16,7 +16,11 @@ export type RootStackParamList = {
   // Nested so a screen can send you to a specific tab, e.g. the
   // daily's "play a real game" landing on the lobby.
   Tabs: NavigatorScreenParams<TabParamList>;
-  Game: undefined;
+  // Opened with no params for the game you are already in, or with them
+  // when a link put you here - in which case the screen asks the server
+  // to seat you. `mode` is "play" or "spectate"; anything else is
+  // ignored, since the path pattern is deliberately loose.
+  Game: { mode?: string; gameId?: string } | undefined;
   // A finished game replayed from its TTN line - no server round trip.
   Replay: { ttn: string; roster?: ReplaySeat[] };
   // Somebody else's public profile, keyed by handle. Yours is the "you"

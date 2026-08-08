@@ -49,10 +49,13 @@ decades.
 - `mobile/` is the bare React Native app (package `com.ticitacatoey`, see
   `mobile/README.md`). Approved deps only: react, react-native, React
   Navigation (+screens/safe-area-context), and async-storage - ask before
-  adding more. The floating chrome is hand-rolled (no glass libraries),
-  and storage is AsyncStorage rather than MMKV so beginners never meet a
-  native module. It is **not** part of the Bun workspace - Metro wants its
-  own node_modules; run `bun install` inside it.
+  adding more. Navigation is React Navigation's own native bottom tabs on
+  iOS, so the bar is the system's - Liquid Glass on iOS 26 - rather than
+  a hand-drawn row of pills chasing every OS release; Android uses the
+  JS tab bar for reasons in `mobile/claude.md`. No glass library. Storage
+  is AsyncStorage rather than MMKV so beginners never meet a native
+  module. It is **not** part of the Bun workspace - Metro wants its own
+  node_modules; run `bun install` inside it.
 - `shared/` is the single source of truth for the wire protocol: the
   model (`shared/model.ts`), the TTN codec (`shared/ttn.ts`), and the
   error copy (`shared/copy.ts`). Server, web, mobile, sdk, and mcp all

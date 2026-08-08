@@ -185,6 +185,19 @@ const LobbyScreen = () => {
         </View>
       )}
 
+      {/* Shown even when empty. Hiding it meant the one place you can
+          join a stranger's game only existed when a stranger happened
+          to be waiting - so nobody could learn the feature was there,
+          or that it is theirs to switch on. */}
+      {openGames.length === 0 && (
+        <View style={{ marginBottom: 16 }}>
+          <Text style={ui.panelTitle}>{"> open to anyone"}</Text>
+          <Text style={[MONO, { color: C.dim, fontSize: 11 }]}>
+            nobody is waiting for players right now. start a game below
+            and turn on "let strangers join" to list it here.
+          </Text>
+        </View>
+      )}
 
       <View style={ui.panel}>
         <Text style={ui.panelTitle}>{"> start new game"}</Text>

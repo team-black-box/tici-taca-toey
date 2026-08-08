@@ -18,6 +18,41 @@ deep links, and store prep.
   react-native-nitro-modules as a direct dependency plus native setup -
   the wrong trade for a teaching app. Reads are async, so identity loads
   once at bootstrap in `state.ts` before the first connect.
+- Navigation is React Navigation, declared in `App.tsx`: a native stack
+  over a **five-tab bar** (play / watch / daily / ranks / you). The tabs
+  are the places you *are*; the stack holds the places you go into and
+  come back from (a game, a replay, someone else's profile). The web
+  reaches the leaderboard and the daily from a sidebar; a phone has a tab
+  bar, so they live there and the lobby gets to be about playing.
+  - **iOS** uses `createNativeBottomTabNavigator`
+    (`@react-navigation/bottom-tabs/unstable`) - a real
+    UITabBarController, so on iOS 26 the bar is Liquid Glass and comes
+    with the system's switch animation, scroll-edge behavior and
+    accessibility. Icons are SF Symbols: a system font, so no assets.
+  - **Android** uses the JS `createBottomTabNavigator` from the same
+    package. The native one draws a Material `BottomNavigationView`,
+    which accepts only a bitmap for an icon and *silently collapses
+    items that have none* - five PNGs at three densities, for an app
+    whose identity is text. The JS bar takes a rendered element, so the
+    icon is a monospace glyph and the bar wears the palette. Do not set a
+    fixed `height` on it: it adds the gesture inset to its own padding,
+    so pinning the height crushes the labels into the home indicator.
+  - Screens, order, and labels are declared once in the `TABS` array and
+    shared by both bars; only the icon differs.
+- Deep links are React Navigation's `linking` config in `App.tsx` - one
+  declaration covering cold start, warm arrival, and the back stack, not
+  a `Linking` listener plus a regex. Paths match the web's routes where
+  the web has one (`""`, `/daily`, `/leaderboard`, `/player/`,
+  `/replay/`, `/play/`, `/spectate/`) so a `ticitacatoey.com` link means
+  the same thing in a browser and in the app; `watch` and `me` are
+  custom-scheme only, having no web page. Two things are load-bearing:
+  `initialRouteName: "Tabs"` puts the tabs under any deep-linked stack
+  screen, without which "< back" is a dead button; and `Game`'s
+  deliberately loose `:mode/:gameId` does not shadow `replay/:ttn` or
+  `player/:handle` because React Navigation ranks by specificity. A game
+  link does not just show a screen, it seats you - `GameScreen` reads the
+  params and calls `openGame`, which validates the mode and id itself.
+  `AndroidManifest.xml`'s App Links filter must list any new path.
 - `src/state.ts` condenses the web client's store/socket/actions - the web
   app is the behavioral source of truth; keep them in sync. That includes
   the `history` slice (finished games from `MY_GAMES`), which feeds the

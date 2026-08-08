@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, Share, Text, View, useWindowDimensions } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -27,14 +27,18 @@ const DailyScreen = () => {
   const [solved, setSolved] = useState(false);
   const [guesses, setGuesses] = useState(0);
   const [wrong, setWrong] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
 
-  if (!loaded) {
-    setLoaded(true);
+  // Restoring today's progress is an effect, not a render-phase read.
+  // The native tab navigator builds every tab's scene up front, so this
+  // component renders long before it is on screen - a storage promise
+  // resolving into setState from render landed on an unmounted
+  // component and React said so.
+  useEffect(() => {
+    let cancelled = false;
     storage
       .getString(`daily:${day}`)
       .then((raw) => {
-        if (!raw) {
+        if (cancelled || !raw) {
           return;
         }
         const saved = JSON.parse(raw) as {
@@ -47,7 +51,10 @@ const DailyScreen = () => {
         setWrong(saved.wrong ?? []);
       })
       .catch(() => undefined);
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [day]);
 
   const cell = Math.floor(
     (width - 28 - (puzzle.boardSize - 1) * 4) / puzzle.boardSize

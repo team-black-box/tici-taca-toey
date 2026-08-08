@@ -16,8 +16,14 @@ const WatchScreen = () => {
   const playing = useAppSelector((state) => state.currentPlayer.playing);
   const spectating = useAppSelector((state) => state.currentPlayer.spectating);
 
+  // Only games actually being played. A game still waiting for players
+  // has nothing to watch, and it was appearing here *and* in the play
+  // tab's "open to anyone" list - the same game offered as two different
+  // things. Joining lives in play; watching lives here.
   const watchable = lobby.filter(
-    (summary) => !playing.includes(summary.gameId)
+    (summary) =>
+      !playing.includes(summary.gameId) &&
+      summary.status === GameStatus.GAME_IN_PROGRESS
   );
 
   return (

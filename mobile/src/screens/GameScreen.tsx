@@ -10,7 +10,8 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import type { RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -36,6 +37,7 @@ import {
   getShareUrl,
   subscribeToCursors,
   rematch,
+  openGame,
 } from "../state";
 import {
   CursorTuple,
@@ -373,13 +375,26 @@ const GameScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { params } = useRoute<RouteProp<RootStackParamList, "Game">>();
   const you = useAppSelector((state) => state.currentPlayer.playerId);
+  const connected = useAppSelector((state) => state.currentPlayer.connected);
   const game = useAppSelector((state) =>
     state.currentPlayer.active
       ? state.games[state.currentPlayer.active]
       : undefined
   );
   const players = useAppSelector((state) => state.players);
+
+  // Arrived by link. React Navigation has already parsed the URL and put
+  // us here; seating is ours to ask for, and it has to wait for the
+  // socket - a cold start from a link runs well before registration.
+  const linkMode = params?.mode;
+  const linkGameId = params?.gameId;
+  useEffect(() => {
+    if (linkMode && linkGameId) {
+      openGame(linkMode, linkGameId);
+    }
+  }, [linkMode, linkGameId, connected]);
 
   if (!game) {
     return (

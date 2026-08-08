@@ -13,19 +13,18 @@ exquisite taste in design.
 ## Pending
 
 - **Publish the mobile app** to the App Store and Play Store
-  ([task file](./tasks/mobile-store-launch.md)). A 2026-08-07 drift audit
-  found protocol parity with the web is exact and every game feature is
-  present; what is missing is the shell around it plus store mechanics.
-  Blockers: the playerKey is built from `Math.random()`
-  (`mobile/src/state.ts:383`) and should be server-minted; no
-  privacy/terms/version anywhere in the app; versions still at 1.0;
-  release builds still signed with the debug key; iOS signing is
-  Developer not Distribution; this Mac's Xcode cannot currently build
-  iOS at all (26.6 selected, only 27.0 simulator runtimes installed);
-  and the app has still never been run on a device or emulator. Also
-  found: both deep-link association files serve SPA HTML, so Universal
-  Links and App Links are silently dead - which breaks the share-a-link
-  invite loop the app is built around.
+  ([task file](./tasks/mobile-store-launch.md)). The code side is done:
+  server-minted playerKey, privacy/terms/version in the app, versions
+  tracking the repo tag, help at parity with the web, run and played on
+  both an iOS simulator and an Android emulator, Universal Links live,
+  and navigation rebuilt on React Navigation (Liquid Glass native tabs
+  on iOS, JS tabs on Android, one declarative deep-link config verified
+  on both). What is left is all account-side and yours: an **Android
+  release keystore** (release builds are still debug-signed, and its
+  SHA-256 is what `assetlinks.json` needs, so App Links stay dead until
+  it exists), **iOS Distribution signing**, and the store listings and
+  submission. Submitting happens from the second MacBook with the
+  released Xcode 26.6, since Apple rejects a beta-built archive.
   Absorbs the two older mobile bullets (playerKey CSPRNG, device pass).
 
 ## Completed

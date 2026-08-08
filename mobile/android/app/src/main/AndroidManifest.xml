@@ -22,16 +22,18 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
-        <!-- ticitacatoey://play/<id> and ://spectate/<id> - works today. -->
+        <!-- The custom scheme carries every URL the app answers to; the
+             shapes themselves live in one place, App.tsx's `linking`. -->
         <intent-filter>
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.DEFAULT" />
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="ticitacatoey" />
         </intent-filter>
-        <!-- App Links for the real domain. autoVerify needs
-             /.well-known/assetlinks.json with the release-signing cert
-             fingerprint, served at production cutover. -->
+        <!-- App Links for the real domain: only the paths the web also
+             serves, so a link means the same thing either way. autoVerify
+             needs /.well-known/assetlinks.json with the release-signing
+             cert fingerprint, served at production cutover. -->
         <intent-filter android:autoVerify="true">
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.DEFAULT" />
@@ -39,8 +41,13 @@
             <data android:scheme="https" />
             <data android:host="ticitacatoey.com" />
             <data android:host="www.ticitacatoey.com" />
+            <data android:path="/" />
+            <data android:path="/daily" />
+            <data android:path="/leaderboard" />
             <data android:pathPrefix="/play/" />
             <data android:pathPrefix="/spectate/" />
+            <data android:pathPrefix="/player/" />
+            <data android:pathPrefix="/replay/" />
         </intent-filter>
       </activity>
     </application>
