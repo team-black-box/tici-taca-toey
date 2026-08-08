@@ -363,3 +363,34 @@ simulator or emulator.
   Block glyphs sit on the baseline rather than the optical centre, so
   the bar chart carries a small `lift` to line up with its neighbours.
   Matrix green: mobile typecheck + both bundles.
+- 2026-08-08 19:40 IST - Tab icons are now the *same artwork* on both platforms, not
+  a glyph matched to a symbol. Matching by meaning could only ever get
+  the two bars near each other, so the icons became images - the one
+  kind of artwork both bars accept, since iOS's native bar takes an SF
+  Symbol or a bitmap and SF Symbols do not exist on Android.
+
+  They are generated, not drawn: `mobile/scripts/make-tab-icons.ts`
+  holds the five shapes as geometry and rasterises them with
+  supersampled anti-aliasing to `src/icons/tabs/*.png` at @1x/@2x/@3x,
+  zero dependencies (the PNG encoder is in the script; only `node:zlib`
+  is imported). So the artwork stays editable and diffable rather than
+  being five opaque binaries, and can be re-cut at any size. Each file
+  is a few hundred bytes of white pixels with a coverage alpha - no
+  colour in the file, because the bar supplies it: iOS tints for
+  selected/unselected on its own, Android via `tintColor`.
+
+  This does spend the zero-asset stance, which was the stated cost.
+  What it buys back: the app no longer has two icon sets to keep in
+  step, and `sf-symbols-typescript` - a package we imported without ever
+  declaring it - is out of the code entirely.
+
+  Verified by running both: iOS shows them on the Liquid Glass bar with
+  the system's own tint, and the Android bar was cropped out of the
+  framebuffer to confirm the same five shapes.
+
+  Noted while there, not done: Android is on the JS tab bar only because
+  the icons used to be text glyphs. That reason is gone, and the native
+  navigator supports the palette on Android, so Android could move to the
+  native bar too. It changes the look and feel there (Material pill
+  indicator, ripple), so it is a call to make rather than a cleanup.
+  Matrix green: mobile typecheck + both bundles.

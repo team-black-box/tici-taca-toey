@@ -28,23 +28,48 @@ deep links, and store prep.
     (`@react-navigation/bottom-tabs/unstable`) - a real
     UITabBarController, so on iOS 26 the bar is Liquid Glass and comes
     with the system's switch animation, scroll-edge behavior and
-    accessibility. Icons are SF Symbols: a system font, so no assets.
+    accessibility.
   - **Android** uses the JS `createBottomTabNavigator` from the same
-    package. The native one draws a Material `BottomNavigationView`,
-    which accepts only a bitmap for an icon and *silently collapses
-    items that have none* - five PNGs at three densities, for an app
-    whose identity is text. The JS bar takes a rendered element, so the
-    icon is a monospace glyph and the bar wears the palette. Do not set a
-    fixed `height` on it: it adds the gesture inset to its own padding,
-    so pinning the height crushes the labels into the home indicator.
-  - Screens, order, and labels are declared once in the `TABS` array and
-    shared by both bars; only the icon differs. The two icon sets are
-    matched by meaning, glyph for SF Symbol, so the bar reads the same on
-    either phone. Two rules learned the hard way: a glyph that Android
-    substitutes with a **colour emoji** (☺/☻ do) cannot be used - the bar
-    is monochrome; and block elements (`▁▄▆`) sit on the baseline rather
-    than the optical centre, so they need the `lift` field to line up
-    with the glyphs beside them.
+    package. This was originally forced - the native navigator draws a
+    Material `BottomNavigationView`, which takes only a bitmap for an
+    icon and *silently collapses items that have none*, and the icons
+    were text glyphs at the time. That constraint is gone now the icons
+    are images, and the native bar does support the palette on Android
+    (`tabBarActiveTintColor`, `tabBarInactiveTintColor`,
+    `tabBarActiveIndicatorColor`, `tabBarStyle.backgroundColor`), so
+    moving Android onto it is a live option - it changes how the bar
+    looks and behaves there (Material's pill indicator, ripple), so it
+    is a decision rather than a cleanup. On the JS bar, do not set a
+    fixed `height`: it adds the gesture inset to its own padding, so
+    pinning the height crushes the labels into the home indicator.
+  - Screens, order, labels **and icons** are declared once in the `TABS`
+    array and shared by both bars, so the two platforms draw the same
+    artwork rather than an approximation of each other.
+  - The icons are **images**, because an image is the only artwork the
+    two bars have in common: iOS's native bar takes an SF Symbol or a
+    bitmap and nothing else, and SF Symbols do not exist on Android.
+    They are not checked-in binaries anyone has to redraw -
+    `scripts/make-tab-icons.ts` holds the shapes as geometry (circles,
+    rects, triangles, boolean combinations) and rasterises them with
+    supersampled anti-aliasing to `src/icons/tabs/*.png` at @1x/@2x/@3x.
+    Re-run it after editing a shape:
+
+    ```bash
+    bun scripts/make-tab-icons.ts
+    ```
+
+    The files are a few hundred bytes each: white pixels with a coverage
+    alpha, no colour. The bar supplies the colour - iOS tints them for
+    selected/unselected on its own (`tinted` defaults to true), Android
+    via `tintColor` on the `Image`. The `require` calls in `TABS` are
+    literal because Metro resolves them at build time, which is also how
+    the @2x/@3x files get picked up.
+  - This replaced text glyphs, which could only ever get the platforms
+    *near* each other. Two things that cost time and are worth not
+    rediscovering: Android substitutes a **colour emoji** for some glyphs
+    (☺/☻ both), which a monochrome bar cannot have; and block elements
+    sit on the baseline rather than the optical centre, so they never
+    line up with glyphs beside them without a manual nudge.
   - **Every scene gets a plain `View` root** (the `scene()` wrapper in
     `App.tsx`). This is load-bearing. iOS adds the safe-area inset to a
     scroll view by itself, but *only* when that scroll view is the

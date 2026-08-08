@@ -21,11 +21,11 @@ import { DarkTheme, NavigationContainer } from "@react-navigation/native";
 import type { LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createNativeBottomTabNavigator } from "@react-navigation/bottom-tabs/unstable";
-import type { NativeBottomTabIcon } from "@react-navigation/bottom-tabs/unstable";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import type { ComponentType } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Platform, StatusBar, Text, View } from "react-native";
+import { Image, Platform, StatusBar, View } from "react-native";
+import type { ImageSourcePropType } from "react-native";
 import { C, MONO } from "./src/theme";
 import LobbyScreen from "./src/screens/LobbyScreen";
 import WatchScreen from "./src/screens/WatchScreen";
@@ -38,11 +38,6 @@ import PlayerScreen from "./src/screens/PlayerScreen";
 import type { RootStackParamList, TabParamList } from "./src/navigation";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-// Taken from the navigator's own icon type rather than importing
-// `sf-symbols-typescript` directly: that package is only here as
-// something bottom-tabs depends on, and a direct import of a dependency
-// we never declared breaks the day it reshuffles them.
-type SFSymbol = Extract<NativeBottomTabIcon, { type: "sfSymbol" }>["name"];
 
 const NativeTab = createNativeBottomTabNavigator<TabParamList>();
 const JsTab = createBottomTabNavigator<TabParamList>();
@@ -78,49 +73,56 @@ const terminalTheme = {
   },
 };
 
-// One list, two bars. The screens, their order, and their labels are
-// stated once; only the icon differs, because the two platforms want
-// different things from an icon.
+// One list, two bars: screens, order, labels, and now the icon too are
+// stated once and both bars draw the same artwork.
 //
-// The two icon sets are matched by meaning, glyph for symbol, so the app
-// reads the same on either phone: `chart.bar` is three ascending blocks
-// rather than a triangle, which is what it used to be - and which made
-// "ranks" and "play" two triangles side by side.
+// The icons are images rather than SF Symbols because an image is the
+// only artwork the two bars have in common - iOS's native bar takes an
+// SF Symbol or a bitmap and nothing else, and SF Symbols do not exist on
+// Android. The alternative, matching a symbol to a text glyph, only ever
+// got the two platforms *near* each other.
+//
+// They are not hand-drawn binaries: `scripts/make-tab-icons.ts` holds the
+// shapes as geometry and generates every size, so the artwork is
+// editable and diffable. Each file is a few hundred bytes of white
+// pixels with a coverage alpha; the colour comes from the bar (iOS tints
+// them by default, Android via tintColor below). The `require` calls are
+// literal because Metro resolves them at build time - and picking up the
+// @2x/@3x files beside each one is exactly what it is for.
 const TABS = [
   {
     name: "play",
     component: LobbyScreen,
-    symbol: "gamecontroller",
-    glyph: "▶",
+    icon: require("./src/icons/tabs/play.png"),
   },
-  { name: "watch", component: WatchScreen, symbol: "eye", glyph: "◉" },
-  { name: "daily", component: DailyScreen, symbol: "calendar", glyph: "▦" },
+  {
+    name: "watch",
+    component: WatchScreen,
+    icon: require("./src/icons/tabs/watch.png"),
+  },
+  {
+    name: "daily",
+    component: DailyScreen,
+    icon: require("./src/icons/tabs/daily.png"),
+  },
   {
     name: "ranks",
     component: LeaderboardScreen,
-    symbol: "chart.bar",
-    // Block elements sit on the baseline and grow upward, so a full
-    // block reads heavier and lower than the outline glyphs beside it.
-    // Three-quarter height keeps the bar-chart shape and the weight;
-    // `lift` puts its optical centre on the same line as the others,
-    // which baseline alignment alone does not do.
-    glyph: "▁▄▆",
-    lift: 3,
+    icon: require("./src/icons/tabs/ranks.png"),
   },
-  // 웃 rather than a smiling face: ☻ gets substituted with the colour
-  // emoji on Android, which is the one thing a monochrome terminal bar
-  // cannot have. This is already the app's mark for a human - the watch
-  // screen counts people with it.
-  { name: "you", component: YouScreen, symbol: "person", glyph: "웃" },
+  {
+    name: "you",
+    component: YouScreen,
+    icon: require("./src/icons/tabs/you.png"),
+  },
 ] as const satisfies readonly {
   name: keyof TabParamList;
   component: ComponentType<never>;
-  symbol: SFSymbol;
-  glyph: string;
-  // Points to raise the glyph so it sits on the same optical line as
-  // the rest. Only baseline-anchored glyphs need it.
-  lift?: number;
+  icon: ImageSourcePropType;
 }[];
+
+// The size the icons were drawn for; see BASE in the generator.
+const ICON_SIZE = 28;
 
 // Wrapped once at module scope, not per render: a component created
 // inside render is a new type every time, which remounts the screen.
@@ -131,8 +133,7 @@ const PlayerScene = scene(PlayerScreen);
 
 // iOS gets the real UITabBarController: on iOS 26 that means Liquid
 // Glass, the system's switch animation, scroll-edge behavior and
-// accessibility, none of which a hand-drawn bar can have. SF Symbols are
-// a system font, so the icons cost no assets.
+// accessibility, none of which a hand-drawn bar can have.
 const NativeTabs = () => (
   <NativeTab.Navigator screenOptions={{ headerShown: false }}>
     {TAB_SCENES.map((tab) => (
@@ -142,19 +143,25 @@ const NativeTabs = () => (
         component={tab.scene}
         options={{
           title: tab.name,
-          tabBarIcon: { type: "sfSymbol", name: tab.symbol },
+          tabBarIcon: { type: "image", source: tab.icon },
         }}
       />
     ))}
   </NativeTab.Navigator>
 );
 
-// Android gets React Navigation's JavaScript tab bar. The native one
-// draws a Material BottomNavigationView, which only takes a bitmap for
-// an icon and silently collapses items that have none - five PNGs at
-// three densities, for an app whose whole identity is text. The JS bar
-// takes a rendered element, so the icon can be a glyph in the same
-// monospace as everything else, and the bar can wear the palette.
+// Android gets React Navigation's JavaScript tab bar.
+//
+// This was originally forced: the native navigator draws a Material
+// BottomNavigationView, which takes only a bitmap for an icon and
+// silently collapses items that have none, and the icons were text
+// glyphs. That constraint is gone now that the icons are images, and the
+// native bar does support the palette on Android
+// (tabBarActiveTintColor, tabBarInactiveTintColor,
+// tabBarActiveIndicatorColor, tabBarStyle.backgroundColor). So moving
+// Android onto the native bar too is a live option - it just changes how
+// the bar looks and behaves there (Material's pill indicator, ripple),
+// which is a decision rather than a cleanup, and has not been taken.
 const JsTabs = () => (
   <JsTab.Navigator
     screenOptions={({ route }) => ({
@@ -169,20 +176,15 @@ const JsTabs = () => (
         borderTopColor: C.border,
       },
       tabBarLabelStyle: { ...MONO, fontSize: 11 },
+      // tintColor paints the same white-and-alpha artwork iOS tints
+      // natively, so selected and unselected match the palette here too.
       tabBarIcon: ({ color }) => {
-        const tab: { glyph: string; lift?: number } | undefined = TABS.find(
-          (entry) => entry.name === route.name
-        );
+        const tab = TABS.find((entry) => entry.name === route.name);
         return (
-          <Text
-            style={[
-              MONO,
-              { color, fontSize: 18 },
-              tab?.lift ? { transform: [{ translateY: -tab.lift }] } : null,
-            ]}
-          >
-            {tab?.glyph}
-          </Text>
+          <Image
+            source={tab?.icon}
+            style={{ width: ICON_SIZE, height: ICON_SIZE, tintColor: color }}
+          />
         );
       },
     })}
