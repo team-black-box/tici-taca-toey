@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -107,11 +107,22 @@ const LeaderboardScreen = () => {
     setAscending(key === "handle");
   };
 
-  const cell = (value: string, width: number, color = C.fg) => (
+  // Keyed by column, never by content. It used to be `width + value`,
+  // which collides the moment two columns share a width and a value -
+  // and "drew" and "lost" are both 48 wide, so every player with equal
+  // draws and losses (i.e. almost everyone, both being 0) rendered two
+  // children with the same key. React warns and reserves the right to
+  // duplicate or drop them.
+  const cell = (
+    column: SortKey,
+    value: string,
+    width: number,
+    color = C.fg
+  ) => (
     <Text
       style={[MONO, { width, color, fontSize: 11 }]}
       numberOfLines={1}
-      key={width + value}
+      key={column}
     >
       {value}
     </Text>
@@ -157,6 +168,38 @@ const LeaderboardScreen = () => {
               ))}
             </View>
           </ScrollView>
+        )}
+
+        {/* The point of the machines view is not the filter, it is that
+            anyone can add one. Same line the web carries. */}
+        {who === "machines" && (
+          <View style={{ marginBottom: 10 }}>
+            <Text style={[MONO, { color: C.dim, fontSize: 11, lineHeight: 16 }]}>
+              robots play through the SDK in about ten lines; agents connect
+              over MCP with just a url. cloney was trained on the public game
+              corpus - every finished game here feeds it.
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              <Btn
+                title="BUILD A ROBOT >"
+                ghost
+                onPress={() =>
+                  Linking.openURL(
+                    "https://github.com/team-black-box/tici-taca-toey/tree/main/sdk"
+                  )
+                }
+              />
+              <Btn
+                title="MCP >"
+                ghost
+                onPress={() =>
+                  Linking.openURL(
+                    "https://github.com/team-black-box/tici-taca-toey/tree/main/mcp"
+                  )
+                }
+              />
+            </View>
+          </View>
         )}
 
         {loaded && sorted.length === 0 && (
@@ -215,17 +258,18 @@ const LeaderboardScreen = () => {
                   }}
                 >
                   {cell(
+                    COLUMNS[0].key,
                     `${index + 1}. ${row.handle}${kindMark(
                       row.kind as PlayerKind
                     )}`,
                     COLUMNS[0].width
                   )}
-                  {cell(String(row.rating), COLUMNS[1].width, C.accent)}
-                  {cell(String(row.games), COLUMNS[2].width, C.dim)}
-                  {cell(String(row.wins), COLUMNS[3].width, C.dim)}
-                  {cell(String(row.draws), COLUMNS[4].width, C.dim)}
-                  {cell(String(row.losses), COLUMNS[5].width, C.dim)}
-                  {cell(`${row.winRate}%`, COLUMNS[6].width, C.dim)}
+                  {cell(COLUMNS[1].key, String(row.rating), COLUMNS[1].width, C.accent)}
+                  {cell(COLUMNS[2].key, String(row.games), COLUMNS[2].width, C.dim)}
+                  {cell(COLUMNS[3].key, String(row.wins), COLUMNS[3].width, C.dim)}
+                  {cell(COLUMNS[4].key, String(row.draws), COLUMNS[4].width, C.dim)}
+                  {cell(COLUMNS[5].key, String(row.losses), COLUMNS[5].width, C.dim)}
+                  {cell(COLUMNS[6].key, `${row.winRate}%`, COLUMNS[6].width, C.dim)}
                 </Pressable>
               ))}
             </View>
