@@ -16,7 +16,7 @@ describe("same-origin static serving", () => {
     const html = await bodyOf(response);
     // The SPA shell, with the default link-preview title applied.
     expect(html).toContain('<div id="root"></div>');
-    expect(html).toContain("<title>tici-taca-toey</title>");
+    expect(html).toContain("<title>tici-taca-toey · multiplayer tic-tac-toe");
     expect(response!.headers.get("Cache-Control")).toBe("no-cache");
   });
 
@@ -77,6 +77,51 @@ describe("same-origin static serving", () => {
     );
     expect(nasty).not.toContain("<script>");
     expect(nasty).toContain("&lt;script&gt;");
+  });
+
+  test("only the listed pages invite indexing", async () => {
+    const head = async (route: string) => bodyOf(serve("GET", route));
+
+    // The three real pages carry a canonical and no robots directive.
+    for (const [route, canonical] of [
+      ["/", "https://ticitacatoey.com/"],
+      ["/daily", "https://ticitacatoey.com/daily"],
+      ["/leaderboard", "https://ticitacatoey.com/leaderboard"],
+    ]) {
+      const html = await head(route);
+      expect(html).toContain(`<link rel="canonical" href="${canonical}" />`);
+      expect(html).not.toContain('name="robots"');
+    }
+
+    // A trailing slash is the same page, not a second one.
+    expect(await head("/daily/")).toContain(
+      '<link rel="canonical" href="https://ticitacatoey.com/daily" />'
+    );
+
+    // Everything else is noindex - the unbounded spaces, and any unknown
+    // path, which would otherwise be another 200 serving the home page.
+    for (const route of [
+      "/play/abc",
+      "/spectate/abc",
+      "/replay/1.3.3.2.u.0003010402.w0",
+      "/player/neo",
+      "/whatever-does-not-exist",
+      "/leaderboard/extra",
+    ]) {
+      const html = await head(route);
+      expect(html).toContain('<meta name="robots" content="noindex, follow" />');
+      expect(html).not.toContain('rel="canonical"');
+    }
+  });
+
+  test("og:url names the page, escaped", async () => {
+    expect(await bodyOf(serve("GET", "/daily"))).toContain(
+      '<meta property="og:url" content="https://ticitacatoey.com/daily" />'
+    );
+    // A path is untrusted input like any other: it cannot break out of
+    // the attribute even if it arrives unencoded.
+    const nasty = await bodyOf(serve("GET", '/player/x"><script>'));
+    expect(nasty).not.toContain("<script>");
   });
 
   test("path traversal never escapes the web root", async () => {

@@ -101,6 +101,23 @@ Run from inside `web/`:
 - Social unfurls: `index.html` carries OG/Twitter meta and
   `public/og.png` (1200x630, regenerate from the logo art if the identity
   changes); `App.tsx` sets per-route `document.title`.
+- Search: the tags in `index.html` are the **home page** values only.
+  Every other route's title, description, `og:url`, and its canonical or
+  `noindex` are written into the HTML as the server serves it
+  (`server/src/static.ts`, "SEO" in `server/claude.md`) - a crawler never
+  runs the app, so React cannot do this. Two consequences worth knowing:
+  do not add `canonical`, `og:url` or a `robots` meta to `index.html`, or
+  pages get two of them; and a new indexable page has to be added to
+  `INDEXABLE` there **and** to `public/sitemap.xml`.
+- `public/robots.txt` and `public/sitemap.xml` only reach production if
+  they are in the `cp` list in `package.json`'s build script. Anything
+  added to `public/` needs adding there - a file that is missing from
+  `dist/` does not 404, it silently becomes a 200 of SPA HTML, which is
+  how `/sitemap.xml` once served a web page to Google.
+- The `<noscript>` block inside `#root` is real content, not a
+  placeholder: it is what a non-JS crawler and a reader with JavaScript
+  off actually get, so it says what the game is and links the indexable
+  pages. React replaces it on first render.
 - Move impact (`src/common/particles.ts` + the canvas in `Board.tsx`): a
   hand-rolled canvas particle engine - sparks with motion trails, a quick
   shockwave ring, and glyph debris, drawn additively so overlaps bloom like

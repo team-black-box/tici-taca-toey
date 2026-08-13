@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Only the stable pages belong here. Game, replay, spectate, sync and
+  profile URLs are unbounded - one per game ever played - and thin, so
+  listing them would spend a crawler's budget on boards that no longer
+  exist. They are kept out of the index by robots.txt and a per-route
+  noindex, both set in server/src/static.ts and public/robots.txt.
+
+  No <lastmod>: it would be a fixed date claiming to be current, and a
+  lastmod that is not true is worse than none at all.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://ticitacatoey.com/</loc>
+  </url>
+  <url>
+    <loc>https://ticitacatoey.com/daily</loc>
+  </url>
+  <url>
+    <loc>https://ticitacatoey.com/leaderboard</loc>
+  </url>
+  <url>
+    <loc>https://ticitacatoey.com/privacy.html</loc>
+  </url>
+  <url>
+    <loc>https://ticitacatoey.com/terms.html</loc>
+  </url>
+</urlset>

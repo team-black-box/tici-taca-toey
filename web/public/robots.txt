@@ -1,3 +1,22 @@
 # https://www.robotstxt.org/robotstxt.html
+
 User-agent: *
-Disallow:
+Allow: /
+
+# Unbounded URL spaces: one per game ever started, per finished game
+# replayed, per device sync. A crawler following them would spend its
+# whole budget on boards that no longer exist, so they are not crawled
+# at all. Nothing links to them publicly - they are shared privately.
+Disallow: /play/
+Disallow: /spectate/
+Disallow: /replay/
+Disallow: /sync
+Disallow: /api/
+
+# /player/<handle> is deliberately *not* disallowed. The leaderboard
+# links to it, so a crawler will find it either way, and a page that is
+# crawlable can be told noindex (server/src/static.ts sets it) - which
+# keeps it out of the index properly. Disallowing it instead would hide
+# that instruction and the bare URLs could still be listed.
+
+Sitemap: https://ticitacatoey.com/sitemap.xml

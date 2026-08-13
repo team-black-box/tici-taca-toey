@@ -29,6 +29,21 @@ exquisite taste in design.
 
 ## Completed
 
+- Search visibility, and a sitemap that is actually a sitemap
+  (2026-08-13): `/sitemap.xml` had been answering **200 with SPA HTML** -
+  the file did not exist, so the client-route fallback served the app to
+  anything that asked, and a sitemap submitted to Google would have been
+  rejected as invalid. It exists now, is copied into `dist/` by the build,
+  and serves as `application/xml`. The larger fix was indexing itself:
+  because the handler answers every unmatched path with the app shell,
+  every typo and stale link was another 200 serving the home page, so the
+  site was competing with unbounded copies of itself. Indexing is now a
+  whitelist (`/`, `/daily`, `/leaderboard` get a canonical; everything
+  else, including `/play/`, `/replay/`, `/player/<handle>` and any unknown
+  path, gets `noindex, follow`), with `og:url` on every route, keyword-
+  bearing titles and descriptions, `VideoGame` structured data, and real
+  `<noscript>` content for crawlers that do not run JavaScript.
+
 - Five features after the launch (2026-08-07): **rematch** (a finished
   game was a dead end; same board, same rules, same robots by name),
   **post-game analysis** (a replay now names the move that decided it -

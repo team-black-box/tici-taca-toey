@@ -56,15 +56,26 @@ const isFile = (path: string): boolean => {
 // on the path, so a shared /leaderboard or /player/<handle> link unfurls
 // with something about that page instead of the generic home preview.
 
+// The one hostname the site is indexed under. www redirects to it at the
+// proxy (deploy/sites/ticitacatoey.caddy), so canonical URLs must name
+// the apex or the redirect target and the canonical would disagree.
+// Not a secret, and overridable for a different deployment.
+const SITE = process.env.TTT_PUBLIC_URL ?? "https://ticitacatoey.com";
+
 interface PreviewMeta {
   title: string;
   description: string;
+  // The path to declare canonical, or null for a route that should not
+  // be indexed. Every route still gets link-preview tags either way -
+  // `noindex` keeps a page out of search results, not out of Slack.
+  canonical: string | null;
 }
 
 const DEFAULT_META: PreviewMeta = {
-  title: "tici-taca-toey",
+  title: "tici-taca-toey · multiplayer tic-tac-toe online",
   description:
-    "multiplayer tic-tac-toe, terminal style - boards 2-12, robots standing by, chess clocks optional",
+    "Play multiplayer tic-tac-toe online: boards from 2x2 to 12x12, up to 10 players, custom winning lines, chess clocks, and robots to play against. Free, no sign-up.",
+  canonical: "/",
 };
 
 const escapeHtml = (value: string): string =>
@@ -82,13 +93,48 @@ const decode = (value: string): string => {
   }
 };
 
+// Indexing is a whitelist, and that is the point: this handler answers
+// *every* unmatched path with the app shell, so without one, every typo
+// and every stale link would be a 200 serving the same page - unbounded
+// duplicate content, which is the worst thing an SPA does to its own
+// search ranking. Only the pages listed here say "index me"; everything
+// else, including the unbounded game and replay spaces, is noindex.
+const INDEXABLE: Record<string, PreviewMeta> = {
+  "/": DEFAULT_META,
+  "/daily": {
+    title: "Daily puzzle · tici-taca-toey",
+    description:
+      "One tic-tac-toe position a day, the same board for everyone, generated from the date. Find the single move that wins. No opponent and no sign-up needed.",
+    canonical: "/daily",
+  },
+  "/leaderboard": {
+    title: "Leaderboard · tici-taca-toey",
+    description:
+      "The top players, robots, and AI agents at multiplayer tic-tac-toe, ranked by a difficulty-weighted Elo across every game played.",
+    canonical: "/leaderboard",
+  },
+};
+
 const metaForPath = (pathname: string): PreviewMeta => {
+  // A trailing slash is the same page; canonical still names one form.
+  const path =
+    pathname.length > 1 && pathname.endsWith("/")
+      ? pathname.slice(0, -1)
+      : pathname;
+  const indexable = INDEXABLE[path];
+  if (indexable) {
+    return indexable;
+  }
   const player = pathname.match(/^[/]player[/]([^/]+)[/]?$/);
   if (player) {
     const handle = decode(player[1]);
     return {
       title: `${handle} · tici-taca-toey`,
       description: `${handle}'s games and rating. Watch their matches and replay any of them.`,
+      // Crawlable but not indexed: the leaderboard links here, so a
+      // crawler finds these either way, and a handle's game list is
+      // thin, grows without bound, and is somebody else's name.
+      canonical: null,
     };
   }
   if (/^[/]play[/]/.test(pathname)) {
@@ -96,6 +142,7 @@ const metaForPath = (pathname: string): PreviewMeta => {
       title: "Join a game · tici-taca-toey",
       description:
         "You have been invited to a game of multiplayer tic-tac-toe. Take a seat and play.",
+      canonical: null,
     };
   }
   if (/^[/]spectate[/]/.test(pathname)) {
@@ -103,6 +150,7 @@ const metaForPath = (pathname: string): PreviewMeta => {
       title: "Watch a game · tici-taca-toey",
       description:
         "Watch a live game of multiplayer tic-tac-toe - boards up to 12x12, humans, robots, and AI agents.",
+      canonical: null,
     };
   }
   if (/^[/]replay[/]/.test(pathname)) {
@@ -110,16 +158,12 @@ const metaForPath = (pathname: string): PreviewMeta => {
       title: "Game replay · tici-taca-toey",
       description:
         "Replay a finished game of tici-taca-toey move by move. The whole game is in the link.",
+      canonical: null,
     };
   }
-  if (pathname === "/leaderboard") {
-    return {
-      title: "Leaderboard · tici-taca-toey",
-      description:
-        "The top players and robots, ranked by a difficulty-weighted Elo across every game.",
-    };
-  }
-  return DEFAULT_META;
+  // Unknown path: the app shell renders, so it must not be indexed as a
+  // second copy of the home page.
+  return { ...DEFAULT_META, canonical: null };
 };
 
 // The bundler wraps some meta tags across lines, so match any run of
@@ -130,10 +174,29 @@ const OG_DESC = /(<meta\s+property="og:description"\s+content=")[^"]*(")/;
 const NAME_DESC = /(<meta\s+name="description"\s+content=")[^"]*(")/;
 
 // Rewrite the title, description, and OG tags of the built index.html, and
-// inject explicit twitter:* tags so every platform reads the same thing.
-const applyMeta = (html: string, meta: PreviewMeta): string => {
+// inject the tags that depend on which route this is: twitter:*, so every
+// platform reads the same thing, plus og:url, and then either a canonical
+// (indexable) or a robots noindex (not).
+//
+// `pathname` reaches the page as markup, so it is escaped like any other
+// untrusted value - URL parsing already percent-encodes quotes, and this
+// does not rely on it having done so.
+const applyMeta = (
+  html: string,
+  meta: PreviewMeta,
+  pathname: string
+): string => {
   const title = escapeHtml(meta.title);
   const description = escapeHtml(meta.description);
+  const url = escapeHtml(SITE + pathname);
+  const canonical =
+    meta.canonical === null
+      ? // follow, not none: the links out of a game or profile page still
+        // lead to pages that should be crawled.
+        `    <meta name="robots" content="noindex, follow" />\n`
+      : `    <link rel="canonical" href="${escapeHtml(
+          SITE + meta.canonical
+        )}" />\n`;
   return html
     .replace(TITLE, `<title>${title}</title>`)
     .replace(OG_TITLE, `$1${title}$2`)
@@ -143,6 +206,8 @@ const applyMeta = (html: string, meta: PreviewMeta): string => {
       "</head>",
       `    <meta name="twitter:title" content="${title}" />\n` +
         `    <meta name="twitter:description" content="${description}" />\n` +
+        `    <meta property="og:url" content="${url}" />\n` +
+        canonical +
         `  </head>`
     );
 };
@@ -188,7 +253,7 @@ export const createStaticHandler = (
       }
       // SPA fallback: serve index.html with route-specific preview meta.
       if (indexTemplate !== null) {
-        const html = applyMeta(indexTemplate, metaForPath(pathname));
+        const html = applyMeta(indexTemplate, metaForPath(pathname), pathname);
         return new Response(html, {
           headers: {
             "Content-Type": "text/html; charset=utf-8",

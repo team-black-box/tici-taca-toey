@@ -26,7 +26,9 @@ platform primitives.
   index.html title/description/OG tags per route so a shared link unfurls
   with content about that page - crawlers never run the SPA's JavaScript,
   so this has to happen server-side. The meta-tag regexes tolerate the
-  bundler's multi-line wrapping (`\s+` between attributes).
+  bundler's multi-line wrapping (`\s+` between attributes). The same pass
+  injects `og:url` plus **either** a `canonical` or a
+  `robots: noindex, follow` - see SEO below.
 - `src/mcp.ts` - MCP over streamable HTTP at `/mcp`, so AI agents connect
   with a URL and no local install. A session is an in-process player (the
   residents.ts trick), keyed by the `Mcp-Session-Id` header; an
@@ -315,6 +317,39 @@ left the game ends `GAME_WON_BY_TIMEOUT`.
   `undefined`.
 - New limits beat new cleverness: if input can be abused, cap it.
 - Add a test for every new validation rule and every new transition.
+
+## SEO
+
+The handler answers *every* unmatched path with the app shell, which is
+what makes an SPA dangerous to its own ranking: without a rule, each typo
+and stale link is another 200 serving the home page, so the site competes
+with unbounded copies of itself.
+
+So **indexing is a whitelist**. `INDEXABLE` in `src/static.ts` lists the
+pages that get a `<link rel="canonical">` - `/`, `/daily`, `/leaderboard`
+- and everything else is served `noindex, follow`: the unbounded spaces
+(`/play/`, `/spectate/`, `/replay/`, `/sync`), `/player/<handle>`, and any
+unknown path. Adding a real page means adding it here **and** to
+`web/public/sitemap.xml`; a page in one and not the other is the bug this
+is arranged to make obvious.
+
+- `noindex` keeps a page out of *search results*, not out of Slack - link
+  previews still get their title, description and image on every route.
+- `/player/<handle>` is deliberately crawlable-but-noindex rather than
+  disallowed. The leaderboard links to it, so a crawler finds it either
+  way, and only a page it is allowed to fetch can be told `noindex`.
+  Disallowing it would hide that instruction and leave bare URLs listed.
+- Canonical URLs are built from `SITE` (`TTT_PUBLIC_URL`, default
+  `https://ticitacatoey.com`), never the request host: www redirects to
+  the apex at the proxy, and a canonical naming the host it was fetched
+  from would disagree with the redirect.
+- `pathname` is interpolated into the served HTML, so it is escaped like
+  any other untrusted value. `test/static.test.ts` pins that.
+
+`web/public/robots.txt` and `web/public/sitemap.xml` are plain files
+copied into `dist/` by web's build script - **anything added to `public/`
+has to be added to that `cp` list**, which is exactly how `sitemap.xml`
+came to be a 200 of SPA HTML the first time.
 
 ## Deployment
 

@@ -6,25 +6,90 @@
     <link rel="apple-touch-icon" href="./public/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
+    <!--
+      The title and the three description/og tags below are the *home
+      page* values. Every other route has its own, rewritten into this
+      file as it is served - see metaForPath in server/src/static.ts.
+      That is also where canonical, og:url and robots come from, so they
+      are deliberately absent here: two canonicals would be worse than
+      none.
+    -->
     <meta
       name="description"
-      content="Tici Taca Toey - a multiplayer game of tic tac toe with configurable board sizes"
+      content="Play multiplayer tic-tac-toe online: boards from 2x2 to 12x12, up to 10 players, custom winning lines, chess clocks, and robots to play against. Free, no sign-up."
     />
     <link rel="manifest" href="./public/manifest.json" />
-    <meta property="og:title" content="tici-taca-toey" />
+    <meta property="og:site_name" content="tici-taca-toey" />
+    <meta property="og:locale" content="en" />
+    <meta property="og:title" content="tici-taca-toey · multiplayer tic-tac-toe online" />
     <meta
       property="og:description"
-      content="multiplayer tic-tac-toe, terminal style - boards 2-12, robots standing by, chess clocks optional"
+      content="Play multiplayer tic-tac-toe online: boards from 2x2 to 12x12, up to 10 players, custom winning lines, chess clocks, and robots to play against. Free, no sign-up."
     />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://ticitacatoey.com/og.png" />
+    <meta
+      property="og:image:alt"
+      content="tici-taca-toey - a tic-tac-toe board drawn in neon green on black"
+    />
     <meta name="twitter:image" content="https://ticitacatoey.com/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <title>Tici Taca Toey</title>
+    <title>tici-taca-toey · multiplayer tic-tac-toe online</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Tici Taca Toey",
+        "alternateName": "tici-taca-toey",
+        "url": "https://ticitacatoey.com/",
+        "description": "Multiplayer tic-tac-toe with the dials exposed: board sizes from 2x2 to 12x12, up to 10 players, a winning line length you choose, optional chess clocks, teams, and robots to play against.",
+        "applicationCategory": "GameApplication",
+        "genre": ["Board game", "Strategy"],
+        "gamePlatform": ["Web browser", "iOS", "Android"],
+        "playMode": ["MultiPlayer", "SinglePlayer"],
+        "numberOfPlayers": {
+          "@type": "QuantitativeValue",
+          "minValue": 2,
+          "maxValue": 10
+        },
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock"
+        }
+      }
+    </script>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Replaced by React on first render. It is here for the fraction of
+        clients that never run it - crawlers that do not execute
+        JavaScript, and readers with it turned off - so the page says what
+        it is and the indexable routes are reachable by link. Everyone
+        else sees this for a frame at most.
+      -->
+      <noscript>
+        <h1>tici-taca-toey &mdash; multiplayer tic-tac-toe online</h1>
+        <p>
+          Tic-tac-toe with the dials exposed: board sizes from 2&times;2 to
+          12&times;12, up to 10 players, a winning line length you choose,
+          more than one line to win if you like, teams, optional chess
+          clocks, and robots standing by if nobody else is. Free, and there
+          is no sign-up.
+        </p>
+        <p>
+          It needs JavaScript to play, because the board is live over a
+          websocket.
+        </p>
+        <ul>
+          <li><a href="/daily">Today's puzzle</a> &mdash; one position a day, the same for everyone.</li>
+          <li><a href="/leaderboard">Leaderboard</a> &mdash; players and robots ranked by rating.</li>
+        </ul>
+      </noscript>
+    </div>
     <script type="module" src="./src/index.tsx"></script>
   </body>
 </html>
