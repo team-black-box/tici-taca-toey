@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon. Without one, Android 8+ shrinks the legacy square icon
+     onto a white plate - on the home screen and on the Android 12+
+     system splash. The mark is the splash logo, whose own background is
+     the same near-black as the layer behind it, so the join is invisible
+     under any launcher mask. The inset keeps the mark inside the 66dp
+     safe zone of the 108dp layer. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/splash_bg" />
+    <foreground>
+        <inset
+            android:drawable="@drawable/splash_logo"
+            android:inset="20dp" />
+    </foreground>
+</adaptive-icon>

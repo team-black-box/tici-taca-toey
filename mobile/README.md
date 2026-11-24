@@ -56,7 +56,14 @@ branch of `SERVER_URL` at your laptop's LAN IP (the dev server binds
 - Splash: near-black (#050905, = `C.bg`) with the centered mark on both
   platforms - iOS `LaunchScreen.storyboard` + `SplashLogo.imageset`,
   Android `drawable/launch_screen.xml` set as `android:windowBackground`
-  in `values/styles.xml`. No white flash anywhere.
+  in `values/styles.xml`. The splash PNGs are the app icon resized, not
+  the transparent mark: rasterising the mark puts it on white. Their
+  background is the same #050905, so the square edge cannot be seen.
+- Android launcher: an adaptive icon (`mipmap-anydpi-v26/`) over the
+  legacy PNGs, because without one Android 8+ shrinks the square onto a
+  white plate. `values-v31/styles.xml` keeps the Android 12+ system
+  splash near-black; it repeats the base theme, since a qualified style
+  replaces rather than merges.
 - Deep links: `ticitacatoey://play/<id>` and `ticitacatoey://spectate/<id>`
   work today (scheme registered in `Info.plist` and the Android manifest);
   `App.tsx` routes both cold-start and warm URLs through

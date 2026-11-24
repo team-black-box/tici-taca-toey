@@ -179,14 +179,31 @@ does not ask on each upload. Play: no additional declaration.
 
 ## Artwork
 
-| Asset | Size | Status |
+| Asset | Size | Where |
 | --- | --- | --- |
-| iOS app icon | 1024x1024, no alpha | in the asset catalog |
-| iPhone screenshots, 6.9" | 1320x2868 | to capture (iPhone Pro Max simulator) |
+| iOS app icon | 1024x1024, no alpha | the asset catalog |
+| iPhone screenshots, 6.9" | 1320x2868 | `screenshots/store/iphone-6.9/` (5) |
 | iPad screenshots, 13" | 2064x2752 | `screenshots/store/ipad-13/` (4) |
-| Play icon | 512x512 PNG | to cut from `web/public/favicon.svg` |
-| Play feature graphic | 1024x500 | to make |
-| Play phone screenshots | long side at most 2x the short side | to capture |
+| Play phone screenshots | 1280x2560 (exactly 2:1, Play's limit) | `screenshots/store/android/` (5) |
+| Play icon | 512x512 PNG | `store/play/icon-512.png` |
+| Play feature graphic | 1024x500, opaque | `store/play/feature-graphic.png` |
+
+Upload order, same story on every device: play, a live game, the daily
+puzzle, a won game with its analysis line, you. The leaderboard is left
+out on purpose - it shows other players' handles.
+
+The feature graphic is drawn in `store/play/feature-graphic.svg` and
+rasterised with tools macOS already has. `qlmanage` only cuts squares,
+so the art sits in the middle 500 rows of a 1024 canvas and is
+centre-cropped:
+
+```bash
+qlmanage -t -s 1024 -o /some/dir store/play/feature-graphic.svg
+sips -c 500 1024 /some/dir/feature-graphic.svg.png --out store/play/feature-graphic.png
+```
+
+It comes out with an alpha channel, which Play rejects; a round trip
+through JPEG (`sips -s format jpeg`, then back to png) flattens it.
 
 The raw captures in `screenshots/` are device-native and are *not* store
 sizes: the iPhone 17 Pro ones are 6.3", and the Pixel ones are taller

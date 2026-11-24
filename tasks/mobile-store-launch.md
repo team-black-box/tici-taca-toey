@@ -549,3 +549,45 @@ simulator or emulator.
   + typecheck + build, sdk typecheck, mobile typecheck + both bundles.
   One open decision left: the privacy answers.
 
+- 2026-11-24 14:53 IST - **v1.14.0 published and live.** Tagged at `fc6e481`, CI green,
+  GitHub Release published, artifact built by the release workflow and
+  installed by the box on its own poll. Verified against production:
+  `/health` reports v1.14.0 with all three resident robots reconnected,
+  the home page and its script and stylesheet serve, the AASA file is
+  still `application/json` and the sitemap `application/xml`. The box
+  itself was patched and rebooted earlier the same day (63 packages,
+  kernel 7.0.0-44). The store builds can now be cut from this tag.
+- 2026-11-24 15:48 IST - Store artwork done: five iPhone 6.9" screenshots (1320x2868),
+  five Play screenshots (1280x2560 - the emulator's screen was set to
+  exactly 2:1, Play's limit), the Play 512 icon and a 1024x500 feature
+  graphic drawn as SVG and rasterised with qlmanage + sips. All in
+  `mobile/screenshots/store/` and `mobile/store/play/`, taken from
+  1.14.0 builds with a clean 9:41 status bar.
+
+  Capturing a cold start found what no warm screenshot had: **the
+  splash showed the logo on a white square, on both platforms.** The
+  splash PNGs had been rasterised from the transparent mark onto white.
+  Regenerated from the app icon, whose own background is the same
+  `#050905` as the splash, so the join is invisible. And on Android 8+
+  the launcher icon had no adaptive form, so the system shrank it onto
+  a white plate - on the home screen and on the Android 12+ system
+  splash. Added `mipmap-anydpi-v26/ic_launcher{,_round}.xml` and a
+  `values-v31` theme that keeps the system splash near-black. Verified
+  on the emulator: dark splash, no plate. iOS rebuilt with the new
+  asset; its splash is too brief to catch in a capture, so that half is
+  unverified by eye.
+
+  These fixes are **after the v1.14.0 tag**. The store builds must
+  carry them, so by the version rule they need a tag of their own
+  (v1.14.1) before the archives are cut.
+
+  Left for the owner: keystore, both app-signing fingerprints, the two
+  console app records, Distribution signing, the privacy answers.
+- 2026-11-24 16:01 IST - **Tagged v1.14.1**, build 7: the splash and launcher-icon
+  fixes plus the store artwork, so the archives can be cut from a tag
+  that contains everything they ship. Mobile-only - no GitHub Release
+  published, so production stays on v1.14.0 and `/health` will read one
+  patch behind the phone until the next server release. The three "you"
+  captures were re-taken at 1.14.1. Matrix: mobile typecheck + both
+  bundles, iOS Release simulator build, Android APK and bundle.
+

@@ -15,13 +15,14 @@ exquisite taste in design.
   the export-compliance key; Android release builds sign with an upload
   key read from outside the repo; the listing copy and console answers
   are in [`mobile/store/listing.md`](./mobile/store/listing.md).
-  Waiting on, all account-side: the **Android upload keystore** (then
-  `assetlinks.json` from its SHA-256), **iOS Distribution signing**,
-  iPhone and Play store-size screenshots, Play artwork, and one open
-  decision (the privacy answers). It ships as **v1.14.0**, build 6. The app stays
-  universal: the iPad layout is now a centred column and its 13"
-  screenshots are captured.
-  Last checkpoint: 2026-11-24 14:45 IST.
+  Screenshots for all three device classes and the Play artwork are
+  captured. Waiting on, all account-side: the **Android upload
+  keystore** and the Play app-signing fingerprint (then
+  `assetlinks.json`), **iOS Distribution signing**, the two console app
+  records, and the privacy answers. It ships universal. Splash and
+  launcher-icon fixes are tagged **v1.14.1** (build 7), which is what
+  the store builds are cut from.
+  Last checkpoint: 2026-11-24 16:01 IST.
 
 ## Pending
 
