@@ -3,6 +3,76 @@
 Completed `TODO.md` items older than 14 days land here, newest first. See
 [`../claude.md`](../claude.md) for the archiving workflow.
 
+## 2026-08-13
+
+- Search visibility, and a sitemap that is actually a sitemap
+  (2026-08-13): `/sitemap.xml` had been answering **200 with SPA HTML** -
+  the file did not exist, so the client-route fallback served the app to
+  anything that asked, and a sitemap submitted to Google would have been
+  rejected as invalid. It exists now, is copied into `dist/` by the build,
+  and serves as `application/xml`. The larger fix was indexing itself:
+  because the handler answers every unmatched path with the app shell,
+  every typo and stale link was another 200 serving the home page, so the
+  site was competing with unbounded copies of itself. Indexing is now a
+  whitelist (`/`, `/daily`, `/leaderboard` get a canonical; everything
+  else, including `/play/`, `/replay/`, `/player/<handle>` and any unknown
+  path, gets `noindex, follow`), with `og:url` on every route, keyword-
+  bearing titles and descriptions, `VideoGame` structured data, and real
+  `<noscript>` content for crawlers that do not run JavaScript.
+  (completed 2026-08-13)
+
+## 2026-08-07
+
+- Five features after the launch (2026-08-07): **rematch** (a finished
+  game was a dead end; same board, same rules, same robots by name),
+  **post-game analysis** (a replay now names the move that decided it -
+  a win that was there, a block that was not made - from data the
+  notation already kept), **turn alerts** (favicon and title carry the
+  count; a system notification when the tab is hidden - not when the
+  browser is closed, which needs Web Push and is still an open call),
+  **humans/machines on the leaderboard** with a route into the SDK and
+  MCP, and a **daily position** - one puzzle a day, generated from the
+  date so every device derives the same board, needing no opponent and
+  no lobby. Also fixed: per-player neon had silently died on every web
+  board, `.cell`'s colour reset having outranked `.sym-*`.
+  ([task file](./post-launch-features.md))
+  (completed 2026-08-07)
+
+## 2026-07-24
+
+- Live cursors (2026-07-24): the other people in a game now appear as dim
+  ghosts of their own mark over the cell they are considering, so a board
+  feels inhabited between moves. Teammates and spectators always see
+  them; opponents only when the host ticks "show cursors to everyone" at
+  start, which the game header then says plainly - so hovering a cell you
+  have no intention of taking is a legitimate bluff. Presence is never
+  game state: it never touches the board, the notation, or the archive,
+  it rides its own rate budget so a moving pointer can never cost a
+  player the tokens their moves need, and the server coalesces it into
+  one broadcast per audience every 100ms. Mobile draws cursors and never
+  sends one - a finger has no hover. ([task file](./live-cursors.md))
+  (completed 2026-07-24)
+- Replays name their players, and Dependabot goes security-only
+  (2026-07-24): a replay now opens with the goal in plain words and a seat
+  legend saying who was which symbol - team, machine badge, and who won.
+  A TTN line has no names in it by design, so the roster rides in the
+  replay link (`?p=<handle>&k=<kind>` on web, a `roster` route param on
+  mobile) and a bare link still replays, labelled by seat. Dependabot now
+  opens security PRs only (`open-pull-requests-limit: 0` on every
+  ecosystem). Also fixed: `bun run dev` had been crashing on
+  `process is not defined` since the version footer shipped - the bare
+  `process.env` read is now guarded, with the production substitution
+  verified intact.
+  (completed 2026-07-24)
+- Production cutover (2026-07-24, bookkeeping closed 2026-08-07): the
+  Hetzner CX23 in Nuremberg serving one origin - Caddy, systemd, the
+  zero-dep Bun server hosting web + websocket + API, releases installed
+  by the box itself from GitHub Releases with checksum verification and
+  health-checked auto-rollback. Live since 2026-07-23 and has served ten
+  releases; the task file simply never got its final checkpoint.
+  ([task file](./production-cutover.md))
+  (completed 2026-07-24)
+
 ## 2026-06-13
 
 - Live games lobby (LIST_GAMES + spectate rail with human/robot/spectator

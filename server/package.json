@@ -19,7 +19,7 @@
   "author": "subramanian-elavathur",
   "license": "MIT",
   "devDependencies": {
-    "@types/bun": "^1.3.10",
-    "typescript": "^5.9.3"
+    "@types/bun": "^1.4.5",
+    "typescript": "^7.0.2"
   }
 }

@@ -153,5 +153,5 @@ the runbook of record.
   the checkpoint was never updated - the box has since served ten
   releases and is live on v1.10.0, verified today via `/health`. The
   mobile playerKey finding this task raised is carried forward into
-  [`mobile-store-launch.md`](./mobile-store-launch.md), where it is a
+  [`mobile-store-launch.md`](../mobile-store-launch.md), where it is a
   publication blocker.

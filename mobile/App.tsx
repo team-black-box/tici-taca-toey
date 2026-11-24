@@ -254,7 +254,7 @@ const linking: LinkingOptions<RootStackParamList> = {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="light-content" backgroundColor={C.bg} />
+      <StatusBar barStyle="light-content" />
       <NavigationContainer theme={terminalTheme} linking={linking}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Tabs" component={Tabs} />

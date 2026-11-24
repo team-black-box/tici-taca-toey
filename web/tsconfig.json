@@ -5,6 +5,7 @@
     "moduleResolution": "bundler",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "jsx": "react-jsx",
+    "types": ["bun"],
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,

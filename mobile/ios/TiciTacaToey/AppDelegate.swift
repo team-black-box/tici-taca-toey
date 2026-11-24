@@ -10,9 +10,11 @@ import ReactAppDependencyProvider
 //   "Application failed to launch: UIScene life cycle is required for
 //    apps built with this SDK"
 // - which is exactly what this app did the first time anyone ran it.
-// React Native 0.86 ships no scene support of its own (there is no
-// UISceneDelegate anywhere in its AppDelegate library), so the adoption
-// is here.
+// React Native 0.86 had no scene support, so the adoption was written
+// here by hand. Since 0.88 it has: `startReactNative(...connectionOptions:)`
+// and `RCTLinkingManager.scene(...)`. Those are not optional niceties -
+// in a scene app 0.88 turns the older `RCTLinkingManager.application(...)`
+// calls into silent no-ops, so links only arrive through the scene ones.
 //
 // SceneDelegate lives in this file on purpose: a second Swift file would
 // have to be registered in project.pbxproj by hand, and hand-editing that
@@ -80,49 +82,31 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     let window = UIWindow(windowScene: windowScene)
     self.window = window
 
+    // Passing the connection options is what carries a cold-start link:
+    // React Native turns the URL or user activity in them into the launch
+    // options `Linking.getInitialURL()` reads, and missing it is why a
+    // link-launched app would open on the lobby instead of the game.
+    // `openGameLink` in src/state.ts queues it until the socket registers.
     AppDelegate.shared.reactNativeFactory?.startReactNative(
       withModuleName: "TiciTacaToey",
       in: window,
-      launchOptions: nil
+      connectionOptions: connectionOptions
     )
 
     window.backgroundColor = terminalBackground
     window.rootViewController?.view.backgroundColor = terminalBackground
-
-    // Cold start through a link: the scene is handed the URL here rather
-    // than through the delegate callbacks below, and missing this is why
-    // a link-launched app would open on the lobby instead of the game.
-    // `openGameLink` in src/state.ts queues it until the socket registers.
-    if let url = connectionOptions.urlContexts.first?.url {
-      RCTLinkingManager.application(UIApplication.shared, open: url, options: [:])
-    }
-    for activity in connectionOptions.userActivities
-    where activity.activityType == NSUserActivityTypeBrowsingWeb {
-      RCTLinkingManager.application(
-        UIApplication.shared,
-        continue: activity,
-        restorationHandler: { _ in }
-      )
-    }
   }
 
   // ticitacatoey:// game links, arriving while the app is already up.
   func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-    guard let url = URLContexts.first?.url else {
-      return
-    }
-    RCTLinkingManager.application(UIApplication.shared, open: url, options: [:])
+    RCTLinkingManager.scene(scene, openURLContexts: URLContexts)
   }
 
   // Universal links (https://ticitacatoey.com/play/...), which need the
   // Associated Domains entitlement and the AASA file at
   // web/public/.well-known/ to actually arrive.
   func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-    RCTLinkingManager.application(
-      UIApplication.shared,
-      continue: userActivity,
-      restorationHandler: { _ in }
-    )
+    RCTLinkingManager.scene(scene, continue: userActivity)
   }
 }
 

@@ -394,3 +394,58 @@ simulator or emulator.
   native bar too. It changes the look and feel there (Material pill
   indicator, ripple), so it is a call to make rather than a cleanup.
   Matrix green: mobile typecheck + both bundles.
+- 2026-11-24 11:29 IST - Dependency refresh before submission work starts. Workspace
+  (server, web, sdk): React 19.3.1, TypeScript 7.0.2, @types/bun 1.4.5.
+  TypeScript 7 no longer auto-includes `@types/*` and checks side-effect
+  imports, so `web/tsconfig.json` now names `"types": ["bun"]` like the
+  other two already did, and `web/src/css.d.ts` declares the stylesheet
+  import. Mobile: React Native 0.86.0 -> 0.88.1 with the template's
+  native changes (compileSdk/buildTools 37, Kotlin 2.2.0, Gradle 9.4.1,
+  the AGP 9 opt-outs, `proguard-android-optimize.txt`), React Navigation,
+  screens and safe-area-context to latest. Deliberately *not* latest,
+  because 0.88.1's own template pins them: React 19.3.0 (the renderer is
+  version-locked), Babel 7, RN CLI 20.2.0. `edgeToEdgeEnabled` left
+  `false` - the template flipped its default, and that is a layout
+  change, not a version bump.
+
+  Two breaks. `StatusBar` lost its `backgroundColor` prop; dropped, since
+  `styles.xml` already paints the bar `#050905`. And the real one: in a
+  scene-based app 0.88 makes `RCTLinkingManager.application(open:)` and
+  `application(continue:)` return early, so the hand-written scene
+  adoption from August delivered no links at all - `ticitacatoey://daily`
+  left the app sitting on the play tab. `AppDelegate.swift` now uses
+  0.88's own `startReactNative(...connectionOptions:)` and
+  `RCTLinkingManager.scene(...)`, which also replaces the manual
+  cold-start forwarding. Verified on an iPhone 17 Pro simulator (iOS 27,
+  Release build against production): all five tabs by warm link, `daily`
+  by cold-start link, and a full robot game to a win with the analysis
+  line and replay.
+
+  Machine notes, none of them in git: `ios/.xcode.env.local` pointed at a
+  Node that no longer exists (failed two script phases), and CocoaPods
+  kept `React-Core-prebuilt` at 0.86.0 until
+  `pod update React-Core-prebuilt --no-repo-update`. This Mac now has
+  **Xcode 27.0** only, so the "submit from the second MacBook with 26.6"
+  plan is worth re-checking.
+
+  **Not verified: Android at runtime.** `assembleRelease` succeeds, but
+  the Pixel_9_Pro AVD's data directory is gone and the other AVD has no
+  system image, so the APK was never launched on 0.88.1. Do that before
+  submitting - the edge-to-edge and status-bar changes land on Android.
+  Matrix otherwise green: server 172 tests + typecheck, web tests +
+  typecheck + build, sdk typecheck, `bun test mcp`, playground train
+  (93.5% vs random), mobile typecheck + both bundles.
+- 2026-11-24 13:39 IST - Android runtime pass on RN 0.88.1, closing the
+  "not verified" note above. Recreated the `Pixel_9_Pro` AVD from the
+  installed android-35 google_apis image (the cmdline-tools have no
+  Pixel 9 profile, so it is the pixel_6_pro profile with the screen set
+  to 1280x2856), installed the release APK against production: launch
+  with no crash or JS error in logcat, all five tabs, warm deep links
+  for every tab, a cold-start `ticitacatoey://daily`, and a full robot
+  game vs rando to "GAME WON" with the analysis line and replay. Status
+  bar is the right colour without the removed `backgroundColor` prop.
+- 2026-11-24 13:43 IST - Kept the fresh screenshots in
+  `mobile/screenshots/` (six per platform: play, watch, daily, you, a
+  live game, a won game) as raw material for the store listings. The
+  leaderboard shots are deliberately left out: they show other players'
+  handles, and a public repo is not the place to pin those.
