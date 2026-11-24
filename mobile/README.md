@@ -68,21 +68,34 @@ branch of `SERVER_URL` at your laptop's LAN IP (the dev server binds
   `/.well-known/apple-app-site-association` + add the
   `applinks:ticitacatoey.com` Associated Domains entitlement in Xcode.
 
-## Store prep (when we decide to submit)
+## Store prep
 
-- Versioning: bump `MARKETING_VERSION` (iOS) and
-  `versionName`/`versionCode` (`android/app/build.gradle`) together;
-  keep them matching the git tag.
-- Privacy: no tracking, no analytics, no PII off-device - the playerKey
-  is a random secret in AsyncStorage that never leaves the device except
-  as the hashed identity the server stores. `PrivacyInfo.xcprivacy` already
-  declares no collection; Play Console's data-safety form should say the
-  same.
-- Signing: create a release keystore for Android (the checked-in
-  `debug.keystore` is debug-only) and note its SHA-256 in
-  `assetlinks.json` at cutover.
-- Screenshots checklist: lobby with live games, a mid-game board with
-  clocks, the replay stepper, the QR invite - dark terminal shots only.
+The listing copy, review notes, rating and privacy answers live in
+[`store/listing.md`](./store/listing.md); progress is tracked in
+[`tasks/mobile-store-launch.md`](../tasks/mobile-store-launch.md).
+
+- Versioning: `src/version.ts`, `versionName` (`android/app/build.gradle`)
+  and `MARKETING_VERSION` (iOS) carry the git tag the app ships from;
+  `bun run check:versions` fails if they disagree. `versionCode` and
+  `CURRENT_PROJECT_VERSION` are one integer that only goes up.
+- Android signing: release builds use an upload key that is **not** in
+  the repo. Create it once, back it up somewhere that outlives this
+  laptop, and describe it in `~/.gradle/gradle.properties`:
+
+  ```properties
+  TTT_UPLOAD_STORE_FILE=/absolute/path/to/upload.keystore
+  TTT_UPLOAD_STORE_PASSWORD=...
+  TTT_UPLOAD_KEY_ALIAS=upload
+  TTT_UPLOAD_KEY_PASSWORD=...
+  ```
+
+  Without those four properties a release build still succeeds, signed
+  with the checked-in debug key - runnable, but not uploadable. The
+  upload key's SHA-256 goes into `/.well-known/assetlinks.json`.
+- iOS signing: automatic, team `NZ2N94X98Y`. The app claims
+  `applinks:ticitacatoey.com` (`ios/TiciTacaToey/TiciTacaToey.entitlements`),
+  so the App ID needs the Associated Domains capability - Xcode adds it
+  when it manages signing.
 
 ## Headless verification (no Xcode / Android SDK)
 
@@ -94,13 +107,16 @@ bun run bundle:ios
 
 ## Release
 
-- Android: `cd android && ./gradlew assembleRelease` (set up signing first).
+- Android: `cd android && ./gradlew bundleRelease` for the `.aab` Play
+  takes (`assembleRelease` for an installable APK).
 - iOS: open `ios/TiciTacaToey.xcworkspace` in Xcode after
   `bundle exec pod install`, then archive.
 
 ## Code map
 
 - `App.tsx` - navigation shell (tabs + game stack, terminal nav theme).
+- `src/layout.ts` - the centred content column for tablets and the
+  iPad top-tab-bar inset; boards size themselves from `useContentWidth()`.
 - `src/screens/` - LobbyScreen, WatchScreen, GameScreen.
 - `src/glass.tsx` - hand-rolled floating tab bar + pills (translucent
   panels, neon borders), identical on every platform.

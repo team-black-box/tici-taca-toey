@@ -18,6 +18,7 @@
 		13B07F961A680F5B00A75B9A /* TiciTacaToey.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TiciTacaToey.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = TiciTacaToey/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = TiciTacaToey/Info.plist; sourceTree = "<group>"; };
+		7A11C0DE2ED4A00100E17A01 /* TiciTacaToey.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = TiciTacaToey.entitlements; path = TiciTacaToey/TiciTacaToey.entitlements; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = TiciTacaToey/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-TiciTacaToey.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TiciTacaToey.debug.xcconfig"; path = "Target Support Files/Pods-TiciTacaToey/Pods-TiciTacaToey.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-TiciTacaToey.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TiciTacaToey.release.xcconfig"; path = "Target Support Files/Pods-TiciTacaToey/Pods-TiciTacaToey.release.xcconfig"; sourceTree = "<group>"; };
@@ -47,6 +48,7 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
+				7A11C0DE2ED4A00100E17A01 /* TiciTacaToey.entitlements */,
 			);
 			name = TiciTacaToey;
 			sourceTree = "<group>";
@@ -259,7 +261,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CODE_SIGN_ENTITLEMENTS = TiciTacaToey/TiciTacaToey.entitlements;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = NZ2N94X98Y;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = TiciTacaToey/Info.plist;
@@ -268,7 +271,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.12.2;
+				MARKETING_VERSION = 1.14.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -290,7 +293,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CURRENT_PROJECT_VERSION = 5;
+				CODE_SIGN_ENTITLEMENTS = TiciTacaToey/TiciTacaToey.entitlements;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_TEAM = NZ2N94X98Y;
 				INFOPLIST_FILE = TiciTacaToey/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -298,7 +302,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.12.2;
+				MARKETING_VERSION = 1.14.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

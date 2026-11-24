@@ -27,6 +27,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Image, Platform, StatusBar, View } from "react-native";
 import type { ImageSourcePropType } from "react-native";
 import { C, MONO } from "./src/theme";
+import { MAX_CONTENT_WIDTH, useTopBarInset } from "./src/layout";
 import LobbyScreen from "./src/screens/LobbyScreen";
 import WatchScreen from "./src/screens/WatchScreen";
 import GameScreen from "./src/screens/GameScreen";
@@ -55,11 +56,36 @@ const JsTab = createBottomTabNavigator<TabParamList>();
 // scene gets a plain View root here. No screen is ever the root scroll
 // view, so each screen's `paddingTop: insets.top + 8` is the only top
 // inset, on both platforms.
+//
+// The same wrapper holds the content to one centred column on wide
+// screens, and - for tab scenes only, since the bar is not there on a
+// pushed screen - makes room for the iPad's top tab bar. See
+// `src/layout.ts`.
+const column = {
+  flex: 1,
+  width: "100%",
+  maxWidth: MAX_CONTENT_WIDTH,
+  alignSelf: "center",
+} as const;
+
 const scene = (Screen: ComponentType) => () => (
   <View style={{ flex: 1, backgroundColor: C.bg }}>
-    <Screen />
+    <View style={column}>
+      <Screen />
+    </View>
   </View>
 );
+
+const tabScene = (Screen: ComponentType) => () => {
+  const paddingTop = useTopBarInset();
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg, paddingTop }}>
+      <View style={column}>
+        <Screen />
+      </View>
+    </View>
+  );
+};
 
 const terminalTheme = {
   ...DarkTheme,
@@ -126,7 +152,10 @@ const ICON_SIZE = 28;
 
 // Wrapped once at module scope, not per render: a component created
 // inside render is a new type every time, which remounts the screen.
-const TAB_SCENES = TABS.map((tab) => ({ ...tab, scene: scene(tab.component) }));
+const TAB_SCENES = TABS.map((tab) => ({
+  ...tab,
+  scene: tabScene(tab.component),
+}));
 const GameScene = scene(GameScreen);
 const ReplayScene = scene(ReplayScreen);
 const PlayerScene = scene(PlayerScreen);

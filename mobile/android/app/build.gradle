@@ -72,6 +72,14 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def uploadKeyProperties = [
+    'TTT_UPLOAD_STORE_FILE',
+    'TTT_UPLOAD_STORE_PASSWORD',
+    'TTT_UPLOAD_KEY_ALIAS',
+    'TTT_UPLOAD_KEY_PASSWORD',
+]
+def hasUploadKey = uploadKeyProperties.every { project.hasProperty(it) }
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -82,8 +90,8 @@ android {
         applicationId "com.ticitacatoey"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "1.12.2"
+        versionCode 6
+        versionName "1.14.0"
     }
     signingConfigs {
         debug {
@@ -92,15 +100,27 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // The upload key is a credential and lives outside the repo: the
+        // four TTT_UPLOAD_* values come from ~/.gradle/gradle.properties
+        // on the machine that publishes. See mobile/README.md.
+        if (hasUploadKey) {
+            release {
+                storeFile file(project.property('TTT_UPLOAD_STORE_FILE'))
+                storePassword project.property('TTT_UPLOAD_STORE_PASSWORD')
+                keyAlias project.property('TTT_UPLOAD_KEY_ALIAS')
+                keyPassword project.property('TTT_UPLOAD_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Without the upload key a release build still works, signed
+            // with the debug key, so anyone can build and run it. Play
+            // rejects that artifact, which is the point.
+            signingConfig hasUploadKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }

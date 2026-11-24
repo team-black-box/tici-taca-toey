@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { ScrollView, Text, View} from "react-native";
+import { useContentWidth } from "../layout";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -16,7 +17,7 @@ import type { RootStackParamList } from "../navigation";
 // notation is the replay, exactly as on the web.
 const ReplayScreen = () => {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { params } = useRoute<RouteProp<RootStackParamList, "Replay">>();

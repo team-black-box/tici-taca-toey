@@ -78,7 +78,7 @@ not new content.
 1.0` / `CURRENT_PROJECT_VERSION 1` (iOS), while the project is on
 v1.10.0. Needs a scheme - see Decisions.
 
-### B4. Android release builds are signed with the debug key
+### B4. Android release builds are signed with the debug key - WIRED 2026-11-24, key still to create
 
 `mobile/android/app/build.gradle:103` still has the React Native
 template's `signingConfig signingConfigs.debug` under `release`, with
@@ -449,3 +449,103 @@ simulator or emulator.
   live game, a won game) as raw material for the store listings. The
   leaderboard shots are deliberately left out: they show other players'
   handles, and a public repo is not the place to pin those.
+- 2026-11-24 14:32 IST - Store submission work started. An audit of both projects
+  against what the stores actually check found four things that would
+  have bounced the iOS upload or quietly not worked, none of them
+  visible from running the app:
+
+  - **No Associated Domains entitlement.** The AASA file has been live
+    since v1.11.0 and this file has said "Universal Links done" since
+    August, but the app never claimed the domain, so an
+    `https://ticitacatoey.com/play/...` link could only ever open
+    Safari. Added `TiciTacaToey.entitlements`
+    (`applinks:ticitacatoey.com`) and wired it into both build
+    configurations. Verified on the simulator: an https `/spectate/`
+    link now opens the app and routes to the game screen.
+  - **The 1024 icon carried an alpha channel** (every pixel opaque, but
+    the channel alone is a rejection). Re-encoded as RGB.
+  - **An empty `NSLocationWhenInUseUsageDescription`**, a template
+    leftover declaring a permission the app never asks for. Removed.
+  - **No `ITSAppUsesNonExemptEncryption`**, so every upload would have
+    stopped on the export-compliance question. Set to `false`.
+
+  B4 is wired: `android/app/build.gradle` signs release builds with an
+  upload key described by four `TTT_UPLOAD_*` Gradle properties, read
+  from `~/.gradle/gradle.properties`, and falls back to the debug key
+  when they are absent so the project still builds for anyone. The
+  keystore itself is still to create, and stays out of the repo.
+  `bundleRelease` now produces the `.aab` Play wants (51 MB).
+
+  B6 is gone: this Mac's only Xcode is the released 27.0 (`Xcode.app`,
+  27A266a), so the archive can be built here and the second MacBook is
+  no longer needed.
+
+  Listing copy, review notes, rating and privacy answers are drafted in
+  `mobile/store/listing.md`. One thing in it contradicts what this file
+  has assumed: "no data collected" is probably not the honest answer.
+  Both stores count data as collected when it leaves the device and is
+  kept, and the server keeps the handle and the game history. The draft
+  declares those two, used for app functionality only, never tracking;
+  `PrivacyInfo.xcprivacy` still declares nothing and should follow
+  whichever answer is submitted.
+
+  Open decisions, all the owner's: (1) the version to ship as - the
+  app says 1.12.2 build 5, the latest tag is v1.13.0, and the scheme
+  says the app carries the tag it ships from; (2) iPhone-only or
+  universal - the project targets iPad in all orientations, which makes
+  13" iPad screenshots mandatory and the iPad layout has never been
+  looked at; (3) the privacy answers above.
+
+  Found, not fixed: a link to a game that no longer exists leaves the
+  app on "$ loading game..." with no way back but the system gesture.
+  Now that https links open the app, stale invites will hit this.
+
+  Still to do: store-size screenshots (the captures in
+  `mobile/screenshots/` are 6.3" and taller than Play's 2:1 limit),
+  the Play 512 icon and 1024x500 feature graphic, `assetlinks.json`,
+  and a signed-artifact test on both platforms.
+  Verified: iOS Release simulator build + launch + custom-scheme and
+  https links; Android `bundleRelease` + `assembleRelease`; mobile
+  typecheck and both bundles.
+- 2026-11-24 14:40 IST - Decision: **the app stays universal** (iPhone and iPad).
+  Ran it on a 13" iPad for the first time. It worked, and looked like a
+  phone app stretched: every panel the full 1032 points wide, a 3x3
+  board 1000 points across, and in landscape the board would have been
+  taller than the screen. The iPad also floats the system tab bar over
+  the *top* of the content, where it sat on the same line as the
+  `tici-taca-toey_` title.
+
+  Fixed in the one place every screen already passes through, the
+  `scene()` wrapper in `App.tsx`: content now lives in a centred column
+  capped at 640 points, and tab scenes get a top inset for the floating
+  bar on iPad at regular width. The three screens that sized a board
+  from the window (`GameScreen`, `DailyScreen`, `ReplayScreen`) ask
+  `useContentWidth()` instead. Both rules are in `src/layout.ts`. A
+  phone is narrower than the cap, so nothing changes there - checked on
+  the iPhone 17 Pro. This helps Android tablets too, unverified.
+
+  Verified on an iPad Pro 13" simulator (iOS 27): all five tabs in
+  portrait, the leaderboard in landscape, deep links to four tabs, and
+  a full robot game (a draw - rando blocked twice). Four store-size
+  captures (2064x2752) are in `mobile/screenshots/store/ipad-13/`.
+
+  The top-bar inset is a measured constant (56) behind a width check,
+  because neither React Navigation nor the safe area reports the bar. If
+  a future iPadOS moves the bar, that is the number to revisit.
+
+  Still to do, unchanged: iPhone 6.9" and Play screenshots, Play
+  artwork, `assetlinks.json`, signed-artifact tests, and the two open
+  decisions (version, privacy answers). Not looked at on iPad: the game
+  screen in landscape and Split View widths.
+  Matrix: mobile typecheck + both bundles, iOS Release simulator build.
+- 2026-11-24 14:45 IST - Decision: **the first store release is v1.14.0**, build 6.
+  The app changed after the v1.13.0 tag (dependency refresh, iOS link
+  fix, store fixes, iPad layout), so by the "carries the tag it ships
+  from" rule it needed a tag of its own. `src/version.ts`, Gradle and
+  Xcode all say 1.14.0 (`check:versions` agrees); `versionCode` and
+  `CURRENT_PROJECT_VERSION` are 6. Both platforms rebuilt at the new
+  version and the iPad "you" capture re-taken so no store screenshot
+  shows an old number. Full matrix green: server 172 + typecheck, web 9
+  + typecheck + build, sdk typecheck, mobile typecheck + both bundles.
+  One open decision left: the privacy answers.
+

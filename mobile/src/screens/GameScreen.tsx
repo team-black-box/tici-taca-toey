@@ -8,8 +8,8 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
+import { useContentWidth } from "../layout";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -215,7 +215,7 @@ const Verdict = ({
 };
 
 const Board = ({ game, you }: { game: Game; you: string }) => {
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const struck = useLastPlacement(game.positions);
   const cell = Math.floor(
     (width - 28 - (game.boardSize - 1) * 4) / game.boardSize
@@ -302,7 +302,7 @@ const Board = ({ game, you }: { game: Game; you: string }) => {
 
 // Step through a finished game from its TTN line, entirely on-device.
 const ReplayView = ({ ttn }: { ttn: string }) => {
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const decoded = useMemo(() => {
     try {
       return decodeTtn(ttn);

@@ -8,24 +8,24 @@ exquisite taste in design.
 
 ## In progress
 
-- (nothing)
+- **Publish the mobile app** to the App Store and Play Store
+  ([task file](./tasks/mobile-store-launch.md)). The app and both
+  projects are now submission-ready as far as code can take them: iOS
+  has its Associated Domains entitlement, an icon the store accepts and
+  the export-compliance key; Android release builds sign with an upload
+  key read from outside the repo; the listing copy and console answers
+  are in [`mobile/store/listing.md`](./mobile/store/listing.md).
+  Waiting on, all account-side: the **Android upload keystore** (then
+  `assetlinks.json` from its SHA-256), **iOS Distribution signing**,
+  iPhone and Play store-size screenshots, Play artwork, and one open
+  decision (the privacy answers). It ships as **v1.14.0**, build 6. The app stays
+  universal: the iPad layout is now a centred column and its 13"
+  screenshots are captured.
+  Last checkpoint: 2026-11-24 14:45 IST.
 
 ## Pending
 
-- **Publish the mobile app** to the App Store and Play Store
-  ([task file](./tasks/mobile-store-launch.md)). The code side is done:
-  server-minted playerKey, privacy/terms/version in the app, versions
-  tracking the repo tag, help at parity with the web, run and played on
-  both an iOS simulator and an Android emulator, Universal Links live,
-  and navigation rebuilt on React Navigation (Liquid Glass native tabs
-  on iOS, JS tabs on Android, one declarative deep-link config verified
-  on both). What is left is all account-side and yours: an **Android
-  release keystore** (release builds are still debug-signed, and its
-  SHA-256 is what `assetlinks.json` needs, so App Links stay dead until
-  it exists), **iOS Distribution signing**, and the store listings and
-  submission. Submitting happens from the second MacBook with the
-  released Xcode 26.6, since Apple rejects a beta-built archive.
-  Absorbs the two older mobile bullets (playerKey CSPRNG, device pass).
+- (nothing)
 
 ## Completed
 

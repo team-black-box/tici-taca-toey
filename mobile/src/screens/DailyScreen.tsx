@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, Share, Text, View, useWindowDimensions } from "react-native";
+import { Pressable, ScrollView, Share, Text, View} from "react-native";
+import { useContentWidth } from "../layout";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,7 +20,7 @@ import type { RootStackParamList } from "../navigation";
 // unsolved board is the correct thing to show while it loads.
 const DailyScreen = () => {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const width = useContentWidth();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const day = dayKey();
